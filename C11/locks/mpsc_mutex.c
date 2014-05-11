@@ -67,8 +67,15 @@ void mpsc_mutex_destroy(mpsc_mutex_t * self)
     free(atomic_load(&self->head));
 }
 
+
 /*
- *
+ * 1. A thread wishing to acquire the lock starts by creating a new node that
+ *    it will insert in the tail of the queue, using an atomic_exchange() on
+ *    the tail.
+ * 2. The atomic_exchange() operation will return a pointer to the previous
+ *    node to which tail was pointing, and now this thread can set the "next"
+ *    of that node to point to its own node, using an atomic_store().
+ * 3. We now loop until the head reaches the node previous to our own.
  */
 void mpsc_mutex_lock(mpsc_mutex_t * self)
 {
@@ -87,16 +94,19 @@ void mpsc_mutex_lock(mpsc_mutex_t * self)
 
 
 /*
- *
- *
- *
+ * 1. We assume that if unlock() is being called, it is because the current
+ *    thread is holding the lock, which means that the node to which "head"
+ *    points to is the one previous to the node created by the current thread,
+ *    so now all that needs to be done is to advance the head to the next node
+ *    and free() the memory of the previous which is now inaccessible, and
+ *    its "next" field will never be de-referenced by any other thread.
  */
 void mpsc_mutex_unlock(mpsc_mutex_t * self)
 {
     // We assume that if this function was called is because this thread is
     // currently holding the lock, which means that the head->next is mynode
-    mpsc_mutex_node_t * prev = atomic_load(&self->head);
-    mpsc_mutex_node_t * mynode = atomic_load(&prev->next);
+    mpsc_mutex_node_t * prev = atomic_load_explicit(&self->head, memory_order_relaxed);
+    mpsc_mutex_node_t * mynode = atomic_load_explicit(&prev->next, memory_order_relaxed);
 
     if (mynode == NULL) {
         // TODO: too many unlocks ???
