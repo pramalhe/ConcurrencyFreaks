@@ -79,8 +79,7 @@ void mpsc_mutex_lock(mpsc_mutex_t * self)
     // This thread's node is now in the queue, so wait until it is its turn
     mpsc_mutex_node_t * ltail = atomic_load(&self->tail);
     mpsc_mutex_node_t * lhead = atomic_load_explicit(&self->head, memory_order_relaxed);
-    while (lhead != mynode) {
-        if (lhead == prev) break;
+    while (lhead != prev) {
         sched_yield();  // Replace this with thrd_yield() if you use <threads.h>
         ltail = atomic_load(&self->tail);
         lhead = atomic_load_explicit(&self->head, memory_order_relaxed);
