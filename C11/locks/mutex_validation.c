@@ -37,26 +37,42 @@
 #include <unistd.h>      /* Needed by sleep() */
 #include <time.h>        /* Needed by rand()/srand() */
 #include "mpsc_mutex.h"
+#include "ticket_mutex.h"
 
 
 /*
  * Benchmark parameters
  */
-#define ARRAY_SIZE   (1024)
+#define ARRAY_SIZE   (256)
 #define NUM_THREADS  4
 
 
 int *array1;
 
-mpsc_mutex_t mpscmutex;
 pthread_mutex_t pmutex;
+mpsc_mutex_t mpscmutex;
+ticket_mutex_t ticketmutex;
 
 #define TYPE_PTHREAD_MUTEX   0
 #define TYPE_MPSC_MUTEX      1
+#define TYPE_TICKET_MUTEX    2
 
 int g_which_lock = TYPE_PTHREAD_MUTEX;
 int g_quit = 0;
+int g_operCounters[NUM_THREADS];
 
+
+static void clearOperCounters(void) {
+    int i;
+    for (i = 0; i < NUM_THREADS; i++) g_operCounters[i] = 0;
+}
+
+static void printOperationsPerSecond() {
+    int i;
+    long sum = 0;
+    for (i = 0; i < NUM_THREADS; i++) sum += g_operCounters[i];
+    printf("Operations/sec = %d\n", sum);
+}
 
 /**
  *
@@ -64,31 +80,39 @@ int g_quit = 0;
 void worker_thread(int *tid) {
     int i;
     int *current_array;
-    long iteration = 0;
-    pthread_mutex_t held_lock;
+    long iterations = 0;
 
     while (!g_quit) {
         if (g_which_lock == TYPE_PTHREAD_MUTEX) {
-            /* Write operation for pthread_rwlock_t */
+            /* Critical path for pthread_rwlock_t */
             pthread_mutex_lock(&pmutex);
             for (i = 0; i < ARRAY_SIZE; i++) array1[i]++;
             for (i = 1; i < ARRAY_SIZE; i++) {
                 if (array1[i] != array1[0]) printf("ERROR\n");
             }
             pthread_mutex_unlock(&pmutex);
-        } else {
-            /* Write operation for mpsc_mutex_t */
+        } else if (g_which_lock == TYPE_MPSC_MUTEX) {
+            /* Critical path for mpsc_mutex_t */
             mpsc_mutex_lock(&mpscmutex);
             for (i = 0; i < ARRAY_SIZE; i++) array1[i]++;
             for (i = 1; i < ARRAY_SIZE; i++) {
                 if (array1[i] != array1[0]) printf("ERROR\n");
             }
             mpsc_mutex_unlock(&mpscmutex);
+        } else {
+            /* Critical path for ticket_mutex_t */
+            ticket_mutex_lock(&ticketmutex);
+            for (i = 0; i < ARRAY_SIZE; i++) array1[i]++;
+            for (i = 1; i < ARRAY_SIZE; i++) {
+                if (array1[i] != array1[0]) printf("ERROR\n");
+            }
+            ticket_mutex_unlock(&ticketmutex);
         }
-        iteration++;
+        iterations++;
     }
 
-    printf("Thread %d, iteration = %ld\n", *tid, iteration);
+    printf("Thread %d, iterations = %ld\n", *tid, iterations);
+    g_operCounters[*tid] = iterations;
 }
 
 
@@ -115,43 +139,66 @@ int main(void) {
     /* Initialize locks */
     pthread_mutex_init(&pmutex, NULL);
     mpsc_mutex_init(&mpscmutex);
+    ticket_mutex_init(&ticketmutex);
 
     printf("Starting benchmark with %d threads\n", NUM_THREADS);
+    printf("Array has size of %d\n", ARRAY_SIZE);
+
+    // Create the threads
+    pthread_list = (pthread_t *)calloc(sizeof(pthread_t), NUM_THREADS);
 
     printf("Doing test for pthread_mutex_t, sleeping for 10 seconds...\n");
     g_which_lock = TYPE_PTHREAD_MUTEX;
-    /* Create and start threads */
-    pthread_list = (pthread_t *)calloc(sizeof(pthread_t), NUM_THREADS);
+    clearOperCounters();
+    // Start the threads
     for(i = 0; i < NUM_THREADS; i++ ) {
         threadid[i] = i;
         pthread_create(&pthread_list[i], NULL, (void *(*)(void *))worker_thread, (void *)&threadid[i]);
     }
-
     sleep(10);
     g_quit = 1;
 
     for (i = 0; i < NUM_THREADS; i++) {
         pthread_join(pthread_list[i], NULL);
     }
-
     g_quit = 0;
+    printOperationsPerSecond();
+
     printf("Doing test for mpsc_mutex_t, sleeping for 10 seconds\n");
     g_which_lock = TYPE_MPSC_MUTEX;
+    clearOperCounters();
     /* Start threads again, this time for the di_rwlock_t */
     for(i = 0; i < NUM_THREADS; i++ ) {
         pthread_create(&pthread_list[i], NULL, (void *(*)(void *))worker_thread, (void *)&threadid[i]);
     }
-
     sleep(10);
     g_quit = 1;
-
     for (i = 0; i < NUM_THREADS; i++) {
         pthread_join(pthread_list[i], NULL);
     }
+    g_quit = 0;
+    printOperationsPerSecond();
+
+    printf("Doing test for ticket_mutex_t, sleeping for 10 seconds...\n");
+    g_which_lock = TYPE_TICKET_MUTEX;
+    clearOperCounters();
+    // Start the threads
+    for(i = 0; i < NUM_THREADS; i++ ) {
+        threadid[i] = i;
+        pthread_create(&pthread_list[i], NULL, (void *(*)(void *))worker_thread, (void *)&threadid[i]);
+    }
+    sleep(10);
+    g_quit = 1;
+    for (i = 0; i < NUM_THREADS; i++) {
+        pthread_join(pthread_list[i], NULL);
+    }
+    g_quit = 0;
+    printOperationsPerSecond();
 
     /* Destroy locks */
     pthread_mutex_destroy(&pmutex);
     mpsc_mutex_destroy(&mpscmutex);
+    ticket_mutex_destroy(&ticketmutex);
 
     /* Release memory for the array instances and threads */
     free(array1);
