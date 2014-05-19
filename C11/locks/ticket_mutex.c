@@ -32,7 +32,7 @@
  * http://web.mit.edu/6.173/www/currentsemester/readings/R06-scalable-synchronization-1991.pdf
  *
  * Notice that the initial decision of whether to spin or enter the critical
- * section is reach in a wait-free way on x86 or other systems for which
+ * section is reached in a wait-free way on x86 or other systems for which
  * atomic_fetch_add() is implemented with a single atomic instruction (XADD in
  * the x86 case).
  */
@@ -56,11 +56,24 @@ void ticket_mutex_destroy(ticket_mutex_t * self)
 
 
 /*
+ * Locks the mutex
+ * Progress Condition: Blocking
  *
+ * Notice that we don't need to do an acquire barrier the first time we read
+ * "egress" because there was an implicit acquire barrier in the
+ * atomic_fetch_add(ingress, 1) and between then and now, there is no
+ * possibility of another thread incrementing egress because they would have
+ * to increment ingress first, which would cause them to wait for the current
+ * thread.
  */
 void ticket_mutex_lock(ticket_mutex_t * self)
 {
     long lingress = atomic_fetch_add(&self->ingress, 1);
+
+    // If the ingress and egress match, then the lock as been acquired and
+    // we don't even need to do an acquire-barrier.
+    if (lingress == atomic_load_explicit(&self->egress, memory_order_relaxed)) return;
+
     while (lingress != atomic_load(&self->egress)) {
         sched_yield();  // Replace this with thrd_yield() if you use <threads.h>
     }
@@ -69,10 +82,19 @@ void ticket_mutex_lock(ticket_mutex_t * self)
 
 
 /*
+ * Unlocks the mutex
+ * Progress Condition: Wait-Free (on x86)
  *
+ * We could do a simple atomic_fetch_add(egress, 1) but it is faster to do
+ * the relaxed load followed by the store with release barrier.
+ * Notice that the load can be relaxed because the thread did an acquire
+ * barrier when it read the "ingress" with the atomic_fetch_add() back in
+ * ticket_mutex_lock() (or the acquire on reading "egress" at a second try),
+ * and we have the guarantee that "egress" has not changed since then.
  */
 void ticket_mutex_unlock(ticket_mutex_t * self)
 {
-    atomic_fetch_add(&self->egress, 1);
+    long legress = atomic_load_explicit(&self->egress, memory_order_relaxed);
+    atomic_store(&self->egress, legress+1);
 }
 
