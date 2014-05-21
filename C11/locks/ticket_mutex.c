@@ -83,7 +83,7 @@ void ticket_mutex_lock(ticket_mutex_t * self)
 
 /*
  * Unlocks the mutex
- * Progress Condition: Wait-Free (on x86)
+ * Progress Condition: Wait-Free Population Oblivious
  *
  * We could do a simple atomic_fetch_add(egress, 1) but it is faster to do
  * the relaxed load followed by the store with release barrier.
