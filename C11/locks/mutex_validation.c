@@ -28,7 +28,7 @@
 
 /*
  * This file can be compiled with something like (you'll need gcc 4.9.x):
- * gcc --std=c11 mutex_validation.c mpsc_mutex.c -lpthread -o mpsc
+ * gcc --std=c11 mutex_validation.c mpsc_mutex.c ticket_mutex.c exchg_mutex.c -lpthread -o mbench
  * Feel free to add  -O3 -march=native
  */
 #include <stdio.h>
@@ -38,6 +38,7 @@
 #include <time.h>        /* Needed by rand()/srand() */
 #include "mpsc_mutex.h"
 #include "ticket_mutex.h"
+#include "exchg_mutex.h"
 
 
 /*
@@ -46,16 +47,20 @@
 #define ARRAY_SIZE   (256)
 #define NUM_THREADS  4
 
-
+/*
+ * Global variables
+ */
 int *array1;
 
 pthread_mutex_t pmutex;
 mpsc_mutex_t mpscmutex;
 ticket_mutex_t ticketmutex;
+exchg_mutex_t exchgmutex;
 
 #define TYPE_PTHREAD_MUTEX   0
 #define TYPE_MPSC_MUTEX      1
 #define TYPE_TICKET_MUTEX    2
+#define TYPE_EXCHG_MUTEX     3
 
 int g_which_lock = TYPE_PTHREAD_MUTEX;
 int g_quit = 0;
@@ -99,7 +104,7 @@ void worker_thread(int *tid) {
                 if (array1[i] != array1[0]) printf("ERROR\n");
             }
             mpsc_mutex_unlock(&mpscmutex);
-        } else {
+        } else if (g_which_lock == TYPE_TICKET_MUTEX) {
             /* Critical path for ticket_mutex_t */
             ticket_mutex_lock(&ticketmutex);
             for (i = 0; i < ARRAY_SIZE; i++) array1[i]++;
@@ -107,6 +112,14 @@ void worker_thread(int *tid) {
                 if (array1[i] != array1[0]) printf("ERROR\n");
             }
             ticket_mutex_unlock(&ticketmutex);
+        } else {
+            /* Critical path for exchg_mutex_t */
+            exchg_mutex_lock(&exchgmutex);
+            for (i = 0; i < ARRAY_SIZE; i++) array1[i]++;
+            for (i = 1; i < ARRAY_SIZE; i++) {
+                if (array1[i] != array1[0]) printf("ERROR\n");
+            }
+            exchg_mutex_unlock(&exchgmutex);
         }
         iterations++;
     }
@@ -140,6 +153,7 @@ int main(void) {
     pthread_mutex_init(&pmutex, NULL);
     mpsc_mutex_init(&mpscmutex);
     ticket_mutex_init(&ticketmutex);
+    exchg_mutex_init(&exchgmutex);
 
     printf("Starting benchmark with %d threads\n", NUM_THREADS);
     printf("Array has size of %d\n", ARRAY_SIZE);
@@ -167,7 +181,6 @@ int main(void) {
     printf("Doing test for mpsc_mutex_t, sleeping for 10 seconds\n");
     g_which_lock = TYPE_MPSC_MUTEX;
     clearOperCounters();
-    /* Start threads again, this time for the di_rwlock_t */
     for(i = 0; i < NUM_THREADS; i++ ) {
         pthread_create(&pthread_list[i], NULL, (void *(*)(void *))worker_thread, (void *)&threadid[i]);
     }
@@ -195,10 +208,27 @@ int main(void) {
     g_quit = 0;
     printOperationsPerSecond();
 
+    printf("Doing test for exchg_mutex_t, sleeping for 10 seconds...\n");
+    g_which_lock = TYPE_EXCHG_MUTEX;
+    clearOperCounters();
+    // Start the threads
+    for(i = 0; i < NUM_THREADS; i++ ) {
+        threadid[i] = i;
+        pthread_create(&pthread_list[i], NULL, (void *(*)(void *))worker_thread, (void *)&threadid[i]);
+    }
+    sleep(10);
+    g_quit = 1;
+    for (i = 0; i < NUM_THREADS; i++) {
+        pthread_join(pthread_list[i], NULL);
+    }
+    g_quit = 0;
+    printOperationsPerSecond();
+
     /* Destroy locks */
     pthread_mutex_destroy(&pmutex);
     mpsc_mutex_destroy(&mpscmutex);
     ticket_mutex_destroy(&ticketmutex);
+    exchg_mutex_destroy(&exchgmutex);
 
     /* Release memory for the array instances and threads */
     free(array1);

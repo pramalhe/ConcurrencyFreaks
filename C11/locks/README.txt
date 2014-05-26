@@ -22,19 +22,35 @@ mpsc_mutex.c
 A mutual exclusion lock that uses the MPSC queue invented by Dmitry Vyukov.
 More details can be seen here:
 http://concurrencyfreaks.com/2014/05/c11-atomics-and-mpsc-mutual-exclusion.html
-and a powerpointe presentation here:
+and a powerpoint presentation here:
 https://github.com/pramalhe/ConcurrencyFreaks/tree/master/presentations/MPSC-Mutex.pptx
 
 
 
 -------------------------------------------------------------------------------
-EXCHange Mutex
+EXCHanGe Mutex
 
 exchg_mutex.h
 exchg_mutex.c
 A mutual exclusion lock that combines ideas from the well known MSC lock and
 from the MPSC queue. More details can be seen here:
 ???
+and a powerpoint presentation here:
+https://github.com/pramalhe/ConcurrencyFreaks/tree/master/presentations/Exchg-Mutex.pptx
+
+
+
+-------------------------------------------------------------------------------
+EXCHanGe Reader-Writer Lock
+
+exchg_rwlock.h
+exchg_rwlock.c
+A Reader-Writer lock that uses the same kind of ideas as the EXCHG Mutex.
+More details can be seen here:
+
+and a powerpoint presentation here:
+https://github.com/pramalhe/ConcurrencyFreaks/tree/master/presentations/Exchg-RWLock.pptx
+
 
 
 
