@@ -25,8 +25,8 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************
  */
-#ifndef _EXCHG_RWLOCK_H_
-#define _EXCHG_RWLOCK_H_
+#ifndef _CLH_RWLOCK_H_
+#define _CLH_RWLOCK_H_
 
 #include <stdatomic.h>
 #include <stdlib.h>
@@ -35,28 +35,28 @@
 #include <sched.h>
 
 
-typedef struct exchg_rwlock_node_ exchg_rwlock_node_t;
+typedef struct clh_rwlock_node_ clh_rwlock_node_t;
 
-struct exchg_rwlock_node_
+struct clh_rwlock_node_
 {
-    _Atomic char islocked;
+    _Atomic char succ_must_wait;
 };
 
 typedef struct
 {
-    exchg_rwlock_node_t * mynode;
+    clh_rwlock_node_t * mynode;
     char padding1[64];  // To avoid false sharing with the tail
-    _Atomic (exchg_rwlock_node_t *) tail;
+    _Atomic (clh_rwlock_node_t *) tail;
     char padding2[64];  // No point in having false-sharing with the tail
     _Atomic long readers_counter;
-} exchg_rwlock_t;
+} clh_rwlock_t;
 
 
-void exchg_rwlock_init(exchg_rwlock_t * self);
-void exchg_rwlock_destroy(exchg_rwlock_t * self);
-void exchg_rwlock_readlock(exchg_rwlock_t * self);
-void exchg_rwlock_readunlock(exchg_rwlock_t * self);
-void exchg_rwlock_writelock(exchg_rwlock_t * self);
-void exchg_rwlock_writeunlock(exchg_rwlock_t * self);
+void clh_rwlock_init(clh_rwlock_t * self);
+void clh_rwlock_destroy(clh_rwlock_t * self);
+void clh_rwlock_readlock(clh_rwlock_t * self);
+void clh_rwlock_readunlock(clh_rwlock_t * self);
+void clh_rwlock_writelock(clh_rwlock_t * self);
+void clh_rwlock_writeunlock(clh_rwlock_t * self);
 
-#endif /* _EXCHG_RWLOCK_H_ */
+#endif /* _CLH_RWLOCK_H_ */
