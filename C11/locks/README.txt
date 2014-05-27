@@ -20,6 +20,7 @@ Multi-Producer-Single-Consumer Mutex
 mpsc_mutex.h
 mpsc_mutex.c
 A mutual exclusion lock that uses the MPSC queue invented by Dmitry Vyukov.
+This is actually a simple variant of the CLH lock (see below).
 More details can be seen here:
 http://concurrencyfreaks.com/2014/05/c11-atomics-and-mpsc-mutual-exclusion.html
 and a powerpoint presentation here:
@@ -28,28 +29,31 @@ https://github.com/pramalhe/ConcurrencyFreaks/tree/master/presentations/MPSC-Mut
 
 
 -------------------------------------------------------------------------------
-EXCHanGe Mutex
+CLH Lock
 
-exchg_mutex.h
-exchg_mutex.c
-A mutual exclusion lock that combines ideas from the well known MSC lock and
-from the MPSC queue. More details can be seen here:
-???
+clh_mutex.h
+clh_mutex.c
+A mutual exclusion lock discovered independently by Travis Craig at the 
+University of Washington (UW TR 93-02-02, February 1993), and by 
+Anders Landin and Eric Hagersten of the Swedish Institute of Computer Science (IPPS, 1994).
+http://www.cs.rochester.edu/research/synchronization/pseudocode/ss.html#clh
+More details can be seen here
+http://concurrencyfreaks.com/2014/05/exchg-mutex-alternative-to-mcs-lock.html
 and a powerpoint presentation here:
-https://github.com/pramalhe/ConcurrencyFreaks/tree/master/presentations/Exchg-Mutex.pptx
+https://github.com/pramalhe/ConcurrencyFreaks/tree/master/presentations/CLH-Mutex.pptx
 
 
 
 -------------------------------------------------------------------------------
-EXCHanGe Reader-Writer Lock
+CLH Reader-Writer Lock
 
-exchg_rwlock.h
-exchg_rwlock.c
-A Reader-Writer lock that uses the same kind of ideas as the EXCHG Mutex.
+clh_rwlock.h
+clh_rwlock.c
+A Reader-Writer lock that uses the same kind of ideas as the CLH mutex.
 More details can be seen here:
-
+???
 and a powerpoint presentation here:
-https://github.com/pramalhe/ConcurrencyFreaks/tree/master/presentations/Exchg-RWLock.pptx
+https://github.com/pramalhe/ConcurrencyFreaks/tree/master/presentations/CLH-RWLock.pptx
 
 
 

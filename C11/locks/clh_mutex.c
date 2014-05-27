@@ -27,19 +27,19 @@
  */
 
 /*
- * As far as we can tell, we discovered this algorithm for lock implementation,
- * but if you happen to see some prior art, we would like to know about it, so
- * leave us a comment at http://www.concurrencyfreaks.com
+ * This is a C11 implementation of the CLH lock where the previous node is removed.
+ * See slide 45 here:
+ * http://www.cs.rice.edu/~vs3/comp422/lecture-notes/comp422-lec19-s08-v1.pdf
  *
  * Notice that this lock is NOT recursive, but it is easy to make it recursive.
  *
  * This mutual exclusion lock is "Starvation-Free", assuming that the run-time
  * can provide that kind of guarantee.
  *
- * It is possible to remove the field "mynode" from exchg_mutex_node_t, but
+ * It is possible to remove the field "mynode" from clh_mutex_node_t, but
  * then we need to use either a thread-local variables to store them, or we
- * need to return it from exchg_mutex_lock() and pass it to
- * exchg_mutex_unlock() as argument, which is ok for some usages, but hard to
+ * need to return it from clh_mutex_lock() and pass it to
+ * clh_mutex_unlock() as argument, which is ok for some usages, but hard to
  * do for others.
  * In C++1x, it should be easy to use this technique with a "Guard" pattern
  * and then pass the operation on the object associated with the mutex through
@@ -56,20 +56,20 @@
  * The main different from the MCS lock (section 2) is that MCS may have to do
  * an Compare-And-Swap in addition to the atomic_store() in the unlock function.
  *
- * The Exchg mutex uses the (theoretically) minimum amount of synchronization
+ * The CLH lock uses the (theoretically) minimum amount of synchronization
  * operations to perform a mutual exclusion lock, because:
  * - In the lock() function it has a single synchronized operation
  *   atomic_exchange() with one acquire and one release barrier.
  * - In the unlock() function is has a single synchronized operation, the
  *   atomic_store() with a release barrier.
  */
-#include "exchg_mutex.h"
+#include "clh_mutex.h"
 
 
-static exchg_mutex_node_t * exchg_mutex_create_node(char islocked)
+static clh_mutex_node_t * clh_mutex_create_node(char islocked)
 {
-    exchg_mutex_node_t * new_node = (exchg_mutex_node_t *)malloc(sizeof(exchg_mutex_node_t));
-    atomic_store_explicit(&new_node->islocked, islocked, memory_order_relaxed);
+    clh_mutex_node_t * new_node = (clh_mutex_node_t *)malloc(sizeof(clh_mutex_node_t));
+    atomic_store_explicit(&new_node->succ_must_wait, islocked, memory_order_relaxed);
     return new_node;
 }
 
@@ -79,10 +79,10 @@ static exchg_mutex_node_t * exchg_mutex_create_node(char islocked)
  *
  * Progress Condition: Wait-Free Population Oblivious
  */
-void exchg_mutex_init(exchg_mutex_t * self)
+void clh_mutex_init(clh_mutex_t * self)
 {
     // We create the first sentinel node unlocked, with islocked=0
-    exchg_mutex_node_t * node = exchg_mutex_create_node(0);
+    clh_mutex_node_t * node = clh_mutex_create_node(0);
     self->mynode = node;
     atomic_store(&self->tail, node);
 }
@@ -95,7 +95,7 @@ void exchg_mutex_init(exchg_mutex_t * self)
  *
  * Progress Condition: Wait-Free Population Oblivious
  */
-void exchg_mutex_destroy(exchg_mutex_t * self)
+void clh_mutex_destroy(clh_mutex_t * self)
 {
     free(atomic_load(&self->tail));
 }
@@ -107,25 +107,25 @@ void exchg_mutex_destroy(exchg_mutex_t * self)
  *
  * Progress Condition: Blocking
  */
-void exchg_mutex_lock(exchg_mutex_t * self)
+void clh_mutex_lock(clh_mutex_t * self)
 {
     // Create the new node locked by default, setting islocked=1
-    exchg_mutex_node_t *mynode = exchg_mutex_create_node(1);
-    exchg_mutex_node_t *prev = atomic_exchange(&self->tail, mynode);
+    clh_mutex_node_t *mynode = clh_mutex_create_node(1);
+    clh_mutex_node_t *prev = atomic_exchange(&self->tail, mynode);
 
     // This thread's node is now in the queue, so wait until it is its turn
-    char prev_islocked = atomic_load_explicit(&prev->islocked, memory_order_relaxed);
+    char prev_islocked = atomic_load_explicit(&prev->succ_must_wait, memory_order_relaxed);
     if (prev_islocked) {
         while (prev_islocked) {
             sched_yield();  // Replace this with thrd_yield() if you use <threads.h>
-            prev_islocked = atomic_load(&prev->islocked);
+            prev_islocked = atomic_load(&prev->succ_must_wait);
         }
     }
     // This thread has acquired the lock on the mutex and it is now safe to
     // cleanup the memory of the previous node.
     free(prev);
 
-    // Store mynode for exchg_mutex_unlock() to use. We could replace
+    // Store mynode for clh_mutex_unlock() to use. We could replace
     // this with a thread-local, not sure which is faster.
     self->mynode = mynode;
 }
@@ -137,7 +137,7 @@ void exchg_mutex_lock(exchg_mutex_t * self)
  *
  * Progress Condition: Wait-Free Population Oblivious
  */
-void exchg_mutex_unlock(exchg_mutex_t * self)
+void clh_mutex_unlock(clh_mutex_t * self)
 {
     // We assume that if this function was called, it is because this thread is
     // currently holding the lock, which means that self->mynode is pointing to
@@ -146,6 +146,6 @@ void exchg_mutex_unlock(exchg_mutex_t * self)
         // ERROR: This will occur if unlock() is called without a lock()
         return;
     }
-    atomic_store(&self->mynode->islocked, 0);
+    atomic_store(&self->mynode->succ_must_wait, 0);
 }
 

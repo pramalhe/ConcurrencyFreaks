@@ -27,20 +27,16 @@
  */
 
 /*
- * As part of its inner working, this mutual exclusion lock uses a variation of
- * the Multi-Producer-Single-Consumer queue discovered by Dmitry Vyukov:
- * http://www.1024cores.net/home/lock-free-algorithms/queues/non-intrusive-mpsc-node-based-queue
- *
- * As far as we can tell, we discovered this algorithm for lock implementation,
- * but if you happen to see some prior art, we would like to know about it, so
- * leave us a comment in http://www.concurrencyfreaks.com
+ * A mutual exclusion lock that uses the MPSC queue invented by Dmitry Vyukov.
+ * This is actually a simple variant of the CLH lock which was discovered
+ * independently by Travis Craig at the University of Washington
+ * (UW TR 93-02-02, February 1993), and by Anders Landin and Eric Hagersten
+ * of the Swedish Institute of Computer Science (IPPS, 1994).
+ * http://www.cs.rochester.edu/research/synchronization/pseudocode/ss.html#clh
  *
  * Notice that this lock is NOT recursive.
  * This mutual exclusion lock is "Starvation-Free", assuming that the run-time
  * can provide that kind of guarantee.
- *
- * Have fun with it,
- * Pedro & Andreia
  */
 #include "mpsc_mutex.h"
 

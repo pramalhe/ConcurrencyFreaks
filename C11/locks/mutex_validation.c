@@ -28,7 +28,7 @@
 
 /*
  * This file can be compiled with something like (you'll need gcc 4.9.x):
- * gcc --std=c11 mutex_validation.c mpsc_mutex.c ticket_mutex.c exchg_mutex.c -lpthread -o mbench
+ * gcc --std=c11 mutex_validation.c mpsc_mutex.c ticket_mutex.c clh_mutex.c -lpthread -o mbench
  * Feel free to add  -O3 -march=native
  */
 #include <stdio.h>
@@ -38,7 +38,7 @@
 #include <time.h>        /* Needed by rand()/srand() */
 #include "mpsc_mutex.h"
 #include "ticket_mutex.h"
-#include "exchg_mutex.h"
+#include "clh_mutex.h"
 
 
 /*
@@ -55,7 +55,7 @@ int *array1;
 pthread_mutex_t pmutex;
 mpsc_mutex_t mpscmutex;
 ticket_mutex_t ticketmutex;
-exchg_mutex_t exchgmutex;
+clh_mutex_t clhmutex;
 
 #define TYPE_PTHREAD_MUTEX   0
 #define TYPE_MPSC_MUTEX      1
@@ -113,13 +113,13 @@ void worker_thread(int *tid) {
             }
             ticket_mutex_unlock(&ticketmutex);
         } else {
-            /* Critical path for exchg_mutex_t */
-            exchg_mutex_lock(&exchgmutex);
+            /* Critical path for clh_mutex_t */
+            clh_mutex_lock(&clhmutex);
             for (i = 0; i < ARRAY_SIZE; i++) array1[i]++;
             for (i = 1; i < ARRAY_SIZE; i++) {
                 if (array1[i] != array1[0]) printf("ERROR\n");
             }
-            exchg_mutex_unlock(&exchgmutex);
+            clh_mutex_unlock(&clhmutex);
         }
         iterations++;
     }
@@ -153,7 +153,7 @@ int main(void) {
     pthread_mutex_init(&pmutex, NULL);
     mpsc_mutex_init(&mpscmutex);
     ticket_mutex_init(&ticketmutex);
-    exchg_mutex_init(&exchgmutex);
+    clh_mutex_init(&clhmutex);
 
     printf("Starting benchmark with %d threads\n", NUM_THREADS);
     printf("Array has size of %d\n", ARRAY_SIZE);
@@ -228,7 +228,7 @@ int main(void) {
     pthread_mutex_destroy(&pmutex);
     mpsc_mutex_destroy(&mpscmutex);
     ticket_mutex_destroy(&ticketmutex);
-    exchg_mutex_destroy(&exchgmutex);
+    clh_mutex_destroy(&clhmutex);
 
     /* Release memory for the array instances and threads */
     free(array1);

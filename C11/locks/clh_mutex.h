@@ -25,8 +25,8 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************
  */
-#ifndef _EXCHG_MUTEX_H_
-#define _EXCHG_MUTEX_H_
+#ifndef _CLH_MUTEX_H_
+#define _CLH_MUTEX_H_
 
 #include <stdatomic.h>
 #include <stdlib.h>
@@ -35,25 +35,25 @@
 #include <sched.h>
 
 
-typedef struct exchg_mutex_node_ exchg_mutex_node_t;
+typedef struct clh_mutex_node_ clh_mutex_node_t;
 
-struct exchg_mutex_node_
+struct clh_mutex_node_
 {
-    _Atomic char islocked;
+    _Atomic char succ_must_wait;
 };
 
 typedef struct
 {
-    exchg_mutex_node_t * mynode;
+    clh_mutex_node_t * mynode;
     char padding[64];  // To avoid false sharing with the tail
-    _Atomic (exchg_mutex_node_t *) tail;
-} exchg_mutex_t;
+    _Atomic (clh_mutex_node_t *) tail;
+} clh_mutex_t;
 
 
-void exchg_mutex_init(exchg_mutex_t * self);
-void exchg_mutex_destroy(exchg_mutex_t * self);
-void exchg_mutex_lock(exchg_mutex_t * self);
-void exchg_mutex_unlock(exchg_mutex_t * self);
+void clh_mutex_init(clh_mutex_t * self);
+void clh_mutex_destroy(clh_mutex_t * self);
+void clh_mutex_lock(clh_mutex_t * self);
+void clh_mutex_unlock(clh_mutex_t * self);
 
 
-#endif /* _exchg_MUTEX_H_ */
+#endif /* _CLH_MUTEX_H_ */
