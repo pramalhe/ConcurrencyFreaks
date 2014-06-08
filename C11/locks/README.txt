@@ -51,7 +51,7 @@ clh_rwlock.h
 clh_rwlock.c
 A Reader-Writer lock that uses the same kind of ideas as the CLH mutex.
 More details can be seen here:
-???
+http://concurrencyfreaks.com/2014/06/clh-reader-writer-lock.html
 and a powerpoint presentation here:
 https://github.com/pramalhe/ConcurrencyFreaks/tree/master/presentations/CLH-RWLock.pptx
 

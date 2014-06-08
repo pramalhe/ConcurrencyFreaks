@@ -28,7 +28,7 @@
 
 /*
  * This file can be compiled with something like (you'll need gcc 4.9.x):
- * gcc --std=c11 mutex_validation.c mpsc_mutex.c ticket_mutex.c clh_mutex.c -lpthread -o mbench
+ * gcc --std=c11 -D_XOPEN_SOURCE=600 mutex_validation.c mpsc_mutex.c ticket_mutex.c clh_mutex.c -lpthread -o mbench
  * Feel free to add  -O3 -march=native
  */
 #include <stdio.h>
@@ -53,14 +53,16 @@
 int *array1;
 
 pthread_mutex_t pmutex;
+pthread_spinlock_t pspin;
 mpsc_mutex_t mpscmutex;
 ticket_mutex_t ticketmutex;
 clh_mutex_t clhmutex;
 
 #define TYPE_PTHREAD_MUTEX   0
-#define TYPE_MPSC_MUTEX      1
-#define TYPE_TICKET_MUTEX    2
-#define TYPE_EXCHG_MUTEX     3
+#define TYPE_PTHREAD_SPIN    1
+#define TYPE_MPSC_MUTEX      2
+#define TYPE_TICKET_MUTEX    3
+#define TYPE_EXCHG_MUTEX     4
 
 int g_which_lock = TYPE_PTHREAD_MUTEX;
 int g_quit = 0;
@@ -96,6 +98,14 @@ void worker_thread(int *tid) {
                 if (array1[i] != array1[0]) printf("ERROR\n");
             }
             pthread_mutex_unlock(&pmutex);
+        } else if (g_which_lock == TYPE_PTHREAD_SPIN) {
+            /* Critical path for pthread_spin_t */
+            pthread_spin_lock(&pspin);
+            for (i = 0; i < ARRAY_SIZE; i++) array1[i]++;
+            for (i = 1; i < ARRAY_SIZE; i++) {
+                if (array1[i] != array1[0]) printf("ERROR\n");
+            }
+            pthread_spin_unlock(&pspin);
         } else if (g_which_lock == TYPE_MPSC_MUTEX) {
             /* Critical path for mpsc_mutex_t */
             mpsc_mutex_lock(&mpscmutex);
@@ -151,6 +161,7 @@ int main(void) {
 
     /* Initialize locks */
     pthread_mutex_init(&pmutex, NULL);
+    pthread_spin_init(&pspin, PTHREAD_PROCESS_PRIVATE);
     mpsc_mutex_init(&mpscmutex);
     ticket_mutex_init(&ticketmutex);
     clh_mutex_init(&clhmutex);
@@ -172,6 +183,20 @@ int main(void) {
     sleep(10);
     g_quit = 1;
 
+    for (i = 0; i < NUM_THREADS; i++) {
+        pthread_join(pthread_list[i], NULL);
+    }
+    g_quit = 0;
+    printOperationsPerSecond();
+
+    printf("Doing test for pthread_spin_t, sleeping for 10 seconds\n");
+    g_which_lock = TYPE_PTHREAD_SPIN;
+    clearOperCounters();
+    for(i = 0; i < NUM_THREADS; i++ ) {
+        pthread_create(&pthread_list[i], NULL, (void *(*)(void *))worker_thread, (void *)&threadid[i]);
+    }
+    sleep(10);
+    g_quit = 1;
     for (i = 0; i < NUM_THREADS; i++) {
         pthread_join(pthread_list[i], NULL);
     }
@@ -226,6 +251,7 @@ int main(void) {
 
     /* Destroy locks */
     pthread_mutex_destroy(&pmutex);
+    pthread_spin_destroy(&pspin);
     mpsc_mutex_destroy(&mpscmutex);
     ticket_mutex_destroy(&ticketmutex);
     clh_mutex_destroy(&clhmutex);

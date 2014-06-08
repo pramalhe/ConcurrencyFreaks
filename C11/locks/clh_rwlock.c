@@ -161,7 +161,7 @@ void clh_rwlock_writelock(clh_rwlock_t * self)
         }
     }
 
-    // Even though islocked is 0, there may be unfinished Readers, so spin/wait
+    // Even though succ_must_wait is 0, there may be unfinished Readers, so spin/wait
     // until they're over.
     long readers_counter = atomic_load_explicit(&self->readers_counter, memory_order_relaxed);
     if (readers_counter != 0) {
