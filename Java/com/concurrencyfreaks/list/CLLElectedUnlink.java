@@ -88,6 +88,9 @@ package com.concurrencyfreaks.list;
  * between using a volatile load (load with acquire barrier) or a regular 
  * load (relaxed atomic load) on that particular architecture. 
  * <p>
+ * More info at:
+ * http://concurrencyfreaks.com/2014/06/cllelectedunlink-lock-free-list-with.html
+ * <p>
  * @author Andreia Correia
  * @author Pedro Ramalhete
  */
