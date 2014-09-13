@@ -58,21 +58,10 @@ void ticket_mutex_destroy(ticket_mutex_t * self)
 /*
  * Locks the mutex
  * Progress Condition: Blocking
- *
- * Notice that we don't need to do an acquire barrier the first time we read
- * "egress" because there was an implicit acquire barrier in the
- * atomic_fetch_add(ingress, 1) and between then and now, there is no
- * possibility of another thread incrementing egress because they would have
- * to increment ingress first, which would cause them to wait for the current
- * thread.
  */
 void ticket_mutex_lock(ticket_mutex_t * self)
 {
     long lingress = atomic_fetch_add(&self->ingress, 1);
-
-    // If the ingress and egress match, then the lock as been acquired and
-    // we don't even need to do an acquire-barrier.
-    if (lingress == atomic_load_explicit(&self->egress, memory_order_relaxed)) return;
 
     while (lingress != atomic_load(&self->egress)) {
         sched_yield();  // Replace this with thrd_yield() if you use <threads.h>
