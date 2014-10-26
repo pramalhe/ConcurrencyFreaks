@@ -34,6 +34,9 @@ import java.lang.reflect.Field;
 
 /**
  * <h1>Concurrent Linked List with Elected Unlink</h1>
+ * This is exactly the same as CLLElectedUnlink but the "next" of the node is volatile instead of relaxed.
+ * the goal of this data structure is to compare the two methods on a benchmark.
+ * 
  * A Linked List where add() are always done at the end of the list
  * and the remove() can be done anywhere but the unlinking operation
  * is done with an Elected pattern.
@@ -96,7 +99,7 @@ import java.lang.reflect.Field;
  * @author Andreia Correia
  * @author Pedro Ramalhete
  */
-public class CLLElectedUnlink<E> implements java.io.Serializable {
+public class CLLElectedUnlinkVolatile<E> implements java.io.Serializable {
 
     private static final long serialVersionUID = -7469378984991097282L;
     
@@ -158,7 +161,7 @@ public class CLLElectedUnlink<E> implements java.io.Serializable {
      */
     static class Node<E> {
         final E item;
-        Node<E> next;
+        volatile Node<E> next;
         volatile int state;
         
         Node(E item) {
@@ -198,21 +201,12 @@ public class CLLElectedUnlink<E> implements java.io.Serializable {
             return UNSAFE.compareAndSwapObject(this, nextOffset, cmp, val);
         }
         
-        /**
-         * Read the value of Node.next with an acquire-barrier.
-         * @return The current value of Node.next
-         */
-        Node<E> getVolatileNext() {
-            return (Node)UNSAFE.getObjectVolatile(this, nextOffset);
-        }
-        
         // Unsafe mechanics
         private static final sun.misc.Unsafe UNSAFE;
         private static final long stateOffset;
         private static final long nextOffset;
 
         static {
-
             try {
                 Field f = sun.misc.Unsafe.class.getDeclaredField("theUnsafe");
                 f.setAccessible(true);
@@ -235,7 +229,7 @@ public class CLLElectedUnlink<E> implements java.io.Serializable {
     /**
      * Default constructor.
      */
-    public CLLElectedUnlink() {
+    public CLLElectedUnlinkVolatile() {
         unlinkGuard  = NO_GUARD;
         unlinkNeeded = NO_NEED;
         // Start with the head and tail having a sentinel node
@@ -255,7 +249,7 @@ public class CLLElectedUnlink<E> implements java.io.Serializable {
         final Node<E> newNode = new Node<E>(item);
         while (true) {
             final Node<E> localTail = tail;
-            final Node<E> node = localTail.getVolatileNext();
+            final Node<E> node = localTail.next;
             if (localTail == tail) {
                 if (node == null) {
                     // It seems this is the last node, so add the newNode here 
@@ -288,9 +282,7 @@ public class CLLElectedUnlink<E> implements java.io.Serializable {
             if (item.equals(node.item) && node.state == INUSE) {
                 return true;
             }
-            // No need for acquire-barriers unless we see null
-            final Node<E> nnext = node.next;
-            node = (nnext == null) ? node.getVolatileNext() : nnext;
+            node = node.next;
         }
         return false;
     }
@@ -351,7 +343,7 @@ public class CLLElectedUnlink<E> implements java.io.Serializable {
         
         // Lets loop first to advance the head if needed
         while (head.state == REMOVED) {
-            Node<E> headNext = head.getVolatileNext(); 
+            Node<E> headNext = head.next; 
             if (headNext == null) return false;
             head = headNext;
         }
@@ -382,8 +374,7 @@ public class CLLElectedUnlink<E> implements java.io.Serializable {
                     lastInUse.next = node.next;
                 }
             }
-            final Node<E> nnext = node.next;
-            node = (nnext == null) ? node.getVolatileNext() : nnext;            
+            node = node.next;            
         }            
         return nodeWasMarked;
     }
@@ -422,8 +413,7 @@ public class CLLElectedUnlink<E> implements java.io.Serializable {
                 }
             }
             prev = node;
-            final Node<E> nnext = node.next;
-            node = (nnext == null) ? node.getVolatileNext() : nnext;            
+            node = node.next;            
         }            
         return false;
     }
@@ -446,8 +436,7 @@ public class CLLElectedUnlink<E> implements java.io.Serializable {
                     return true;
                 }
             }
-            final Node<E> nnext = node.next;
-            node = (nnext == null) ? node.getVolatileNext() : nnext;            
+            node = node.next;            
         }
         return false;
     }
@@ -492,7 +481,7 @@ public class CLLElectedUnlink<E> implements java.io.Serializable {
             f.setAccessible(true);
             UNSAFE = (sun.misc.Unsafe) f.get(null);
             //UNSAFE = sun.misc.Unsafe.getUnsafe();
-            Class<?> k = CLLElectedUnlink.class;
+            Class<?> k = CLLElectedUnlinkVolatile.class;
             guardOffset = UNSAFE.objectFieldOffset
                     (k.getDeclaredField("unlinkGuard"));
             unlinkNeededOffset = UNSAFE.objectFieldOffset
