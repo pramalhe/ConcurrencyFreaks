@@ -27,6 +27,8 @@
  */
 package com.concurrencyfreaks.list;
 
+import java.lang.reflect.Field;
+
 
 /**
  * <h1>HarrisRTTILinkedList</h1>
@@ -47,6 +49,8 @@ package com.concurrencyfreaks.list;
  * <a href="http://cs.brown.edu/~mph/HellerHLMSS05/2005-OPODIS-Lazy.pdf">
  * A Lazy Concurrent List-Based Set Algorithm</a>
  * <p>
+ * More info on this post:
+ * ???
  * 
  * TODO: Some optimizations can still be done to improve performance.
  * 
@@ -79,7 +83,9 @@ public class HarrisRTTILinkedList<E> {
 
         static {
             try {
-                UNSAFE = sun.misc.Unsafe.getUnsafe();
+                Field f = sun.misc.Unsafe.class.getDeclaredField("theUnsafe");
+                f.setAccessible(true);
+                UNSAFE = (sun.misc.Unsafe) f.get(null);
                 Class<?> k = Node.class;
                 nextOffset = UNSAFE.objectFieldOffset
                         (k.getDeclaredField("next"));

@@ -92,6 +92,7 @@ import java.lang.reflect.Field;
  * <p>
  * More info at:
  * http://concurrencyfreaks.com/2014/06/cllelectedunlink-lock-free-list-with.html
+ * http://concurrencyfreaks.com/2014/07/cllelectedunlink-lock-free-list-with.html
  * <p>
  * @author Andreia Correia
  * @author Pedro Ramalhete
@@ -203,7 +204,7 @@ public class CLLElectedUnlink<E> implements java.io.Serializable {
          * @return The current value of Node.next
          */
         Node<E> getVolatileNext() {
-            return (Node)UNSAFE.getObjectVolatile(this, nextOffset);
+            return (Node<E>)UNSAFE.getObjectVolatile(this, nextOffset);
         }
         
         // Unsafe mechanics
@@ -491,7 +492,6 @@ public class CLLElectedUnlink<E> implements java.io.Serializable {
             Field f = sun.misc.Unsafe.class.getDeclaredField("theUnsafe");
             f.setAccessible(true);
             UNSAFE = (sun.misc.Unsafe) f.get(null);
-            //UNSAFE = sun.misc.Unsafe.getUnsafe();
             Class<?> k = CLLElectedUnlink.class;
             guardOffset = UNSAFE.objectFieldOffset
                     (k.getDeclaredField("unlinkGuard"));

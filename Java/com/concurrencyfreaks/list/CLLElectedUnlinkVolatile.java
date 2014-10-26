@@ -34,8 +34,9 @@ import java.lang.reflect.Field;
 
 /**
  * <h1>Concurrent Linked List with Elected Unlink</h1>
- * This is exactly the same as CLLElectedUnlink but the "next" of the node is volatile instead of relaxed.
- * the goal of this data structure is to compare the two methods on a benchmark.
+ * This is exactly the same as CLLElectedUnlink but the "next" of the node is 
+ * volatile instead of relaxed. The goal of this data structure is to compare 
+ * the two methods on a benchmark (see BenchmarkListRelaxedvsVolatile.java)
  * 
  * A Linked List where add() are always done at the end of the list
  * and the remove() can be done anywhere but the unlinking operation
@@ -58,16 +59,6 @@ import java.lang.reflect.Field;
  *      In this case, the special task is to unlink nodes whose {@code state}
  *      is {@code REMOVED}.
  * 
- * <li> <strong>List Traversal with Relaxed Atomics</strong> -
- *      The member Node.next is not qualified as a {@code volatile}, instead, 
- *      this is a <b>relaxed atomic</b>. We have atomicity guarantees from 
- *      the JVM for Node.next, and we only need to do an acquire-barrier if 
- *      Node.next is null, because Node.next can only take two values: null 
- *      (initial value), or a reference to the next Node instance in the list. 
- *      Once it has been assigned a non-null reference, the Node.next can only 
- *      be assigned another non-null reference.            
- * </ul>
- *
  * Compared to java.util.concurrent.ConcurrentLinkedQueue, this data structure 
  * is not as "GC friendly" because each node that is unlinked, has a 
  * {@code next} that references another node that is possibly still in the 
@@ -78,30 +69,16 @@ import java.lang.reflect.Field;
  * that points to the same node. See CLQ.contains() and CLQ.succ() for an 
  * example of how this works.
  * <p>
- * The main advantage of this algorithm when compared with previously known
- * lock-free lists, is that the traversal of the list can be done without 
- * any barriers, at least until a {@code next} with null or a matching 
- * {@code item} are found.
- * This means that for algorithms like the one on the CLQ, the traversal of
- * the list implies O(n) volatile loads, while for the CLLElectedUnlink 
- * algorithm it is O(1) volatile loads.
- * On architectures like x86, where a volatile load (an acquire barrier in 
- * C++1x terms) comes for free, this won't make any difference in terms of
- * performance, but in architectures with a more relaxed model where the 
- * acquires have a price (like ARM), this may be able to provide some gains.
- * How big are those gains depends a lot on the difference in <i>cost</i>
- * between using a volatile load (load with acquire barrier) or a regular 
- * load (relaxed atomic load) on that particular architecture. 
- * <p>
  * More info at:
  * http://concurrencyfreaks.com/2014/06/cllelectedunlink-lock-free-list-with.html
+ * http://concurrencyfreaks.com/2014/07/cllelectedunlink-lock-free-list-with.html
  * <p>
  * @author Andreia Correia
  * @author Pedro Ramalhete
  */
 public class CLLElectedUnlinkVolatile<E> implements java.io.Serializable {
 
-    private static final long serialVersionUID = -7469378984991097282L;
+    private static final long serialVersionUID = -7469378984991097283L;
     
     // Possible states of Node.state
     private static final int INUSE   = 0;
