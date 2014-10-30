@@ -3,17 +3,7 @@ package com.concurrencyfreaks.list;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.concurrent.ConcurrentLinkedQueue;
-
-import com.concurrencyfreaks.list.ConcurrentLinkedListElectedGC;
-import com.concurrencyfreaks.list.LRArrayList;
-import com.concurrencyfreaks.experimental.ConcurrentLinkedListElectedGCWF;
-import com.concurrencyfreaks.list.LRLinkedList;
 import com.concurrencyfreaks.tests.CSVDatabase;
-import com.concurrencyfreaks.waitfreeutils.ConcurrentArrayLL;
-import com.concurrencyfreaks.waitfreeutils.ConcurrentArrayLLBaseOld;
-import com.concurrencyfreaks.waitfreeutils.ConcurrentArrayLLGC;
-
-import java.util.concurrent.CopyOnWriteArrayList;
 
 
 
@@ -33,6 +23,7 @@ public class BenchmarkListRelaxedvsVolatile {
         CLLElectedUnlink,
         CLLElectedUnlinkVolatile,
         ConcurrentLinkedQueue,
+        ConcurrentLinkedQueueRelaxed,
         LRLinkedList,
     }
 
@@ -45,6 +36,7 @@ public class BenchmarkListRelaxedvsVolatile {
     private final CLLElectedUnlink<UserData> clleu;
     private final CLLElectedUnlinkVolatile<UserData> clleuvol;
     private final ConcurrentLinkedQueue<UserData> clq;
+    private final ConcurrentLinkedQueueRelaxed<UserData> clqrel;
     //private final LRLinkedList<UserData> lrLinkedList;
     
     private int writePerMil = -1; 
@@ -54,6 +46,7 @@ public class BenchmarkListRelaxedvsVolatile {
         clleu = new CLLElectedUnlink<UserData>();
         clleuvol = new CLLElectedUnlinkVolatile<UserData>();
         clq = new ConcurrentLinkedQueue<UserData>();
+        clqrel = new ConcurrentLinkedQueueRelaxed<UserData>();
         //lrLinkedList = new LRLinkedList<UserData>();
         
         this.numMilis = numMilis;
@@ -72,6 +65,7 @@ public class BenchmarkListRelaxedvsVolatile {
             clleu.add(ud);
             clleuvol.add(ud);
             clq.add(ud);
+            clqrel.add(ud);
             //lrLinkedList.add(ud);
         }
 
@@ -84,6 +78,7 @@ public class BenchmarkListRelaxedvsVolatile {
         singleTest(numThreads, TestCase.CLLElectedUnlink);
         singleTest(numThreads, TestCase.CLLElectedUnlinkVolatile);
         singleTest(numThreads, TestCase.ConcurrentLinkedQueue);
+        singleTest(numThreads, TestCase.ConcurrentLinkedQueueRelaxed);
         //singleTest(numThreads, TestCase.LRLinkedList);
         System.out.println();
     }
@@ -203,6 +198,10 @@ public class BenchmarkListRelaxedvsVolatile {
                         clq.add(ud);
                         clq.remove(ud);
                         break;
+                    case ConcurrentLinkedQueueRelaxed:
+                        clqrel.add(ud);
+                        clqrel.remove(ud);
+                        break;
                     //case LRLinkedList:
                     //    lrLinkedList.add(ud);
                     //    lrLinkedList.remove(ud);
@@ -223,6 +222,10 @@ public class BenchmarkListRelaxedvsVolatile {
                         clq.contains(ud);
                         clq.contains(ud1);
                         break;
+                    case ConcurrentLinkedQueueRelaxed:
+                        clqrel.contains(ud);
+                        clqrel.contains(ud1);
+                        break;
                     //case LRLinkedList:
                     //    lrLinkedList.contains(ud);
                     //    lrLinkedList.contains(ud1);
@@ -240,8 +243,8 @@ public class BenchmarkListRelaxedvsVolatile {
      * @throws InterruptedException 
      */
     static void simpleWritePerMilTest() throws InterruptedException {
-        LinkedList<Integer> threadList = new LinkedList(Arrays.asList(1, 2, 3, 4, 8, 16, 32, 64, 128, 176));
-        //LinkedList<Integer> threadList = new LinkedList(Arrays.asList(1, 2, 4, 8));
+        //LinkedList<Integer> threadList = new LinkedList(Arrays.asList(1, 2, 3, 4, 8, 16, 32, 64, 128, 176));
+        LinkedList<Integer> threadList = new LinkedList(Arrays.asList(1, 2, 4, 8));
         //LinkedList<Integer> threadList = new LinkedList(Arrays.asList(8));
         
         BenchmarkListRelaxedvsVolatile tests;
@@ -271,8 +274,7 @@ public class BenchmarkListRelaxedvsVolatile {
             tests = null;
             Thread.sleep(1000); // sleep for 1 second to allow the GC to work a bit
         }    // 0.1%
-        
-        
+            
         for (Integer nThreads : threadList){
             tests = new BenchmarkListRelaxedvsVolatile(nThreads, 10000, csvdb, 0);
             tests = null;
