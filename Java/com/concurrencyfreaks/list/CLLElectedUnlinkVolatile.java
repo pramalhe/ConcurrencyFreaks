@@ -127,10 +127,8 @@ public class CLLElectedUnlinkVolatile<E> implements java.io.Serializable {
      * <ul> 
      * <li> {@code item} is final because once assigned, we don't want to 
      * change it. This will save us some acquire barriers.
-     * <li> {@code next} is <b>not</b> volatile because we only want to do the 
-     * acquire and release barriers in certain places. We don't want to force 
-     * an acquire barrier when traversing the list, until we reach the 
-     * original tail.
+     * <li> {@code next} an acquire barrier will be done for each node
+     * that is traversed in the list.
      * <li> {@code state} is volatile and will be modified only with a CAS, so 
      * that only one thread can set it to {@code REMOVED}. Possible states of 
      * this variable are {@code INUSE} or {@code REMOVED}.
@@ -188,7 +186,6 @@ public class CLLElectedUnlinkVolatile<E> implements java.io.Serializable {
                 Field f = sun.misc.Unsafe.class.getDeclaredField("theUnsafe");
                 f.setAccessible(true);
                 UNSAFE = (sun.misc.Unsafe) f.get(null);
-                //UNSAFE = sun.misc.Unsafe.getUnsafe();
                 Class<?> k = Node.class;
                 stateOffset = UNSAFE.objectFieldOffset
                         (k.getDeclaredField("state"));
@@ -457,7 +454,6 @@ public class CLLElectedUnlinkVolatile<E> implements java.io.Serializable {
             Field f = sun.misc.Unsafe.class.getDeclaredField("theUnsafe");
             f.setAccessible(true);
             UNSAFE = (sun.misc.Unsafe) f.get(null);
-            //UNSAFE = sun.misc.Unsafe.getUnsafe();
             Class<?> k = CLLElectedUnlinkVolatile.class;
             guardOffset = UNSAFE.objectFieldOffset
                     (k.getDeclaredField("unlinkGuard"));
