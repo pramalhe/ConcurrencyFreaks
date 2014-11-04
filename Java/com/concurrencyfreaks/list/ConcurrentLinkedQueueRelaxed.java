@@ -195,7 +195,9 @@ public class ConcurrentLinkedQueueRelaxed<E> extends AbstractQueue<E>
         }
         
         E getRelaxedItem() {
-            return (E)UNSAFE.getObject(this, itemOffset);
+            E localitem = (E)UNSAFE.getObject(this, itemOffset);
+            // If it's null we need to re-read, this time as a volatile load
+            return localitem == null ? item : localitem;
         }
 
         void lazySetNext(Node<E> val) {
@@ -375,7 +377,7 @@ public class ConcurrentLinkedQueueRelaxed<E> extends AbstractQueue<E>
         restartFromHead:
         for (;;) {
             for (Node<E> h = head, p = h, q;;) {
-                E item = p.getRelaxedItem();
+                E item = p.item;
 
                 if (item != null && p.casItem(item, null)) {
                     // Successful CAS is the linearization point
@@ -466,7 +468,7 @@ public class ConcurrentLinkedQueueRelaxed<E> extends AbstractQueue<E>
     public int size() {
         int count = 0;
         for (Node<E> p = first(); p != null; p = succ(p))
-            if (p.getRelaxedItem() != null)
+            if (p.item != null)
                 // Collection.size() spec says to max out
                 if (++count == Integer.MAX_VALUE)
                     break;
