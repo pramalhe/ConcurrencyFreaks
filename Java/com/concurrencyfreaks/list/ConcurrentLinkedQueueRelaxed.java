@@ -487,7 +487,7 @@ public class ConcurrentLinkedQueueRelaxed<E> extends AbstractQueue<E>
         if (o == null) return false;
         for (Node<E> p = first(); p != null; p = succRelaxed(p)) {
             E item = p.getRelaxedItem();
-            if (item != null && o.equals(item) && p.item != null)
+            if (item != null && o.equals(item))
                 return true;
         }
         return false;
