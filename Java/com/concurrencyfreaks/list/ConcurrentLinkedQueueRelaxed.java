@@ -195,7 +195,9 @@ public class ConcurrentLinkedQueueRelaxed<E> extends AbstractQueue<E>
         }
         
         E getRelaxedItem() {
-            return (E)UNSAFE.getObject(this, itemOffset);
+            E localitem = (E)UNSAFE.getObject(this, itemOffset);
+            // If it's null we need to re-read, this time as a volatile load
+            return localitem == null ? item : localitem;
         }
 
         void lazySetNext(Node<E> val) {
