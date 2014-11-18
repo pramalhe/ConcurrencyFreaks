@@ -16,11 +16,11 @@ public class RIStaticPerThread implements ReadIndicator {
     }
     
     public void arrive() {
-        perThreadState.set((int)Thread.currentThread().getId(), STATE_NOT_READING);
+        perThreadState.set((int)Thread.currentThread().getId(), STATE_READING);
     }
     
     public void depart() {
-        perThreadState.set((int)Thread.currentThread().getId(), STATE_READING);
+        perThreadState.set((int)Thread.currentThread().getId(), STATE_NOT_READING);
     }
     
     public boolean isEmpty() {
