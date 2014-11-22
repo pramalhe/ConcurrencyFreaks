@@ -38,6 +38,8 @@ import java.util.concurrent.atomic.AtomicLongArray;
  * <p> Uses a modified (scalable) variant of the ReadIndicator used by Gil Tene in WriterReaderPhaser:
  * http://stuff-gil-says.blogspot.fr/2014/11/writerreaderphaser-story-about-new.html
  * <p>
+ * For more explanations see this post:
+ * http://concurrencyfreaks.com/2014/11/left-right-gt-variant.html
  *
  * @author Pedro Ramalhete
  * @author Andreia Correia
@@ -155,6 +157,8 @@ public class LRTreeSetScalableGT<E> implements java.io.Serializable {
 
     /**
      * Called by the Reader before entering the critical section
+     * <p>
+     * Progress Condition: Wait-Free Population Oblivious on x86, Lock-Free for other CPUs
      */
     private long arrive() {
         return startEpoch.getAndIncrement();
@@ -164,6 +168,8 @@ public class LRTreeSetScalableGT<E> implements java.io.Serializable {
     /**
      * Called by the Reader after leaving the critical section
      * @param localVI versionIndex seen by arrive()
+     * <p>
+     * Progress Condition: Wait-Free Population Oblivious on x86, Lock-Free for other CPUs
      */
     private void depart(final long localVI) {
         if (localVI < 0) {

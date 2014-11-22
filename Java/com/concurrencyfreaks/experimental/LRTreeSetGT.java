@@ -37,6 +37,8 @@ import java.util.concurrent.atomic.AtomicLong;
  * <p> Uses the ReadIndicator discovered by Gil Tene in WriterReaderPhaser:
  * http://stuff-gil-says.blogspot.fr/2014/11/writerreaderphaser-story-about-new.html
  * <p>
+ * For more explanations see this post:
+ * http://concurrencyfreaks.com/2014/11/left-right-gt-variant.html
  *
  * @author Pedro Ramalhete
  * @author Andreia Correia
@@ -72,6 +74,8 @@ public class LRTreeSetGT<E> implements java.io.Serializable {
 
     /**
      * Called by the Reader before entering the critical section
+     * <p>
+     * Progress Condition: Wait-Free Population Oblivious on x86, Lock-Free for other CPUs
      */
     private long arrive() {
         return startEpoch.getAndIncrement();
@@ -81,6 +85,8 @@ public class LRTreeSetGT<E> implements java.io.Serializable {
     /**
      * Called by the Reader after leaving the critical section
      * @param localVI versionIndex seen by arrive()
+     * <p>
+     * Progress Condition: Wait-Free Population Oblivious on x86, Lock-Free for other CPUs
      */
     private void depart(final long localVI) {
         if (localVI < 0) {
@@ -95,6 +101,7 @@ public class LRTreeSetGT<E> implements java.io.Serializable {
      * Waits for all the threads doing a "Read" to finish their tasks on the
      * TreeMap that the "Write" wants to modify. 
      * Uses the Left-Right GT variant.
+     * This method must be called within the protection of a mutual exclusion lock (or synchronized block). 
      */
     private void toggleVersionAndScan() {
         final long localVI = startEpoch.get();
