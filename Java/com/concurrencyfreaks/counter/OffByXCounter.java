@@ -27,7 +27,6 @@
  */
 package com.concurrencyfreaks.counter;
 
-import java.lang.reflect.Field;
 
 /**
  * A Counter that uses the "Off-by-X" pattern.
@@ -37,6 +36,10 @@ import java.lang.reflect.Field;
  * <p>
  * Performance plots and a longer description can be seen on this post:
  * <a href="http://concurrencyfreaks.com/2013/08/concurrency-pattern-off-by-x-counter.html">Off-by-X Counter</a>
+ * <p>
+ * To be honest, this counter has such a limited applicability that it's kind
+ * of silly to include it as part of the package, but for the moment we let it
+ * stay.
  * 
  * @author Pedro Ramalhete
  * @author Andreia Correia
@@ -49,7 +52,10 @@ public class OffByXCounter {
     private final long bitflag;
     
     
-    // For faster calls to increment(), the 'theX' variable should be a power of 2
+    /**
+     * We force 'theX' to the nearest highest power of 2 so we can use '&' instead of '%'
+     * @param theX
+     */
     public OffByXCounter(int theX) {
         this.bitflag = Integer.highestOneBit(theX) - 1;
     }
@@ -70,7 +76,7 @@ public class OffByXCounter {
      * This method can NOT be called simultaneously from multiple threads. 
      * 
      * We tried doing a non-volatile store in counterVolatile for every time
-     * that (counter & bitflag) != 0 but it would kill performance.
+     * that (counter & bitflag) != 0, but it would kill performance.
      */ 
     public void increment() {
         counter++;

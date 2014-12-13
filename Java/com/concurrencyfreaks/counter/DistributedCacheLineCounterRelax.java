@@ -27,7 +27,8 @@
  */
 package com.concurrencyfreaks.counter;
 
-import java.util.concurrent.atomic.AtomicLongArray;
+import java.lang.reflect.Field;
+
 
 /**
  * A counter that uses atomic counters with different cache lines and 
@@ -45,16 +46,48 @@ import java.util.concurrent.atomic.AtomicLongArray;
  * @author Pedro Ramalhete
  * @author Andreia Correia
  */
-public class DistributedCacheLineCounter {
+public class DistributedCacheLineCounterRelax {
     // Size of the counters[] array (TODO: explain the magical number <<2)
     private final static int kNumCounters = Integer.highestOneBit(Runtime.getRuntime().availableProcessors())<<2;
     
-    // Size of a cache line in ints
+    // Size of a cache line in longs
     private final static int CACHE_LINE = 64/8;    
     
     // Stores the number of readers holding the read-lock 
-    private final AtomicLongArray counters = new AtomicLongArray(kNumCounters*CACHE_LINE);
+    private final long[] counters = new long[kNumCounters*CACHE_LINE];
     
+    // Used by the relaxed optimization to insert the proper fences
+    private volatile long aVolatileLoad = 0;
+
+    private static final sun.misc.Unsafe UNSAFE;
+            
+    static {
+         try {
+             Field f = sun.misc.Unsafe.class.getDeclaredField("theUnsafe");
+             f.setAccessible(true);
+             UNSAFE = (sun.misc.Unsafe) f.get(null);
+             int scale = UNSAFE.arrayIndexScale(long[].class);
+             if ((scale & (scale - 1)) != 0)
+                 throw new Error("data type scale not a power of two");
+             shift = 31 - Integer.numberOfLeadingZeros(scale);
+         } catch (Exception e) {
+             System.out.println("In Eclipse, add -Xbootclasspath/a:./bin/ to fix this exception\n");
+             throw new Error(e);
+         }   
+    }        
+    
+    private static final int base = UNSAFE.arrayBaseOffset(long[].class);
+    private static final int shift;
+
+    private long checkedByteOffset(int i) {
+        if (i < 0 || i >= counters.length)
+            throw new IndexOutOfBoundsException("index " + i);
+        return byteOffset(i);
+    }
+
+    private static long byteOffset(int i) {
+        return ((long) i << shift) + base;
+    }
     
     /**
      * An imprecise but fast hash function (by George Marsaglia)
@@ -81,7 +114,7 @@ public class DistributedCacheLineCounter {
      * Consistency Model: Sequentially Consistent with decrement() and sum()
      */
     public void increment() {
-        counters.getAndIncrement(tid2hash());
+        UNSAFE.getAndAddLong(counters, checkedByteOffset(tid2hash()), 1);
     }
     
     
@@ -96,22 +129,28 @@ public class DistributedCacheLineCounter {
      * Consistency Model: Sequentially Consistent with increment() and sum()
      */
     public void decrement() {
-        counters.getAndDecrement(tid2hash());
+        UNSAFE.getAndAddLong(counters, checkedByteOffset(tid2hash()), -1);
     }
     
     
     /**
      * Returns the value of the counter.
+     * We read the first entry in the array with a volatile load, thus preventing 
+     * regular loads from being re-ordered up, and in the end we do a loadFence()
+     * to prevent regular loads from being re-ordered downwards.
      * <p>
      * Progress Condition: Wait-Free O(N_Cores)
      * <p>
      * Consistency Model: Sequentially Consistent with increment() and decrement().
      */
     public long sum() {
-        long sum = 0;
+        //long sum = UNSAFE.getLongVolatile(counters, 0);
+        long sum = aVolatileLoad;
         for (int idx = 0; idx < kNumCounters*CACHE_LINE; idx += CACHE_LINE) {
-            sum += counters.get(idx); 
+            sum += counters[idx]; 
         }
+        UNSAFE.loadFence();
+        sum += aVolatileLoad;
         return sum;
     }
     
@@ -122,7 +161,8 @@ public class DistributedCacheLineCounter {
      */
     public void clear() {
         for (int idx = 0; idx < kNumCounters*CACHE_LINE; idx += CACHE_LINE) {
-            counters.set(idx, 0); 
+            counters[idx] = 0; 
         }
-    }    
+        UNSAFE.storeFence();
+    }
 }
