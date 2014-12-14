@@ -8,7 +8,7 @@ DistributedCacheLineCounter - A Distributed Cache Line Counter (DCLC) that
     
 DistributedCacheLineCounterRelax - Similar to DCLC but uses relaxed optimization
     described in this post:
-    http://...    
+    http://concurrencyfreaks.com/2014/12/relaxed-atomics-on-array-of-counters.html    
     
 OffByXCounter - A Counter that uses the "Off-by-X" pattern.
     http://concurrencyfreaks.com/2013/08/concurrency-pattern-off-by-x-counter.html
