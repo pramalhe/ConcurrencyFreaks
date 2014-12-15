@@ -32,16 +32,16 @@ import java.lang.reflect.Field;
 
 /**
  * A counter that uses atomic counters with different cache lines and 
- * aggregates them.
+ * aggregates them, using a relaxed load optimization.
  * <p>
  * Performance plots and a longer description can be seen on this post:
  * <a href="http://concurrencyfreaks.com/2013/08/concurrency-pattern-distributed-cache.html">Distributed Cache-Line Counter</a>
+ * Relax optimization at this post:
+ * <a href="http://concurrencyfreaks.com/2014/12/relaxed-atomics-on-array-of-counters.html">Relaxed atomics on array of counters</a>
  * <p>
- * Very fast for increment()/decrement() operations, but slow for sum().
+ * Very fast for increment()/decrement() operations, but slow for sum(), i.e. slower than LongAdder.
  * <p>
  * TODO: Explain the magical number 4 (<<2) in kNumCounters
- * TODO: Implement a getAndAdd() but explain that the numbers may not be unique 
- *       and that some numbers may never be "seen" by any thread.
  * <p>
  * @author Pedro Ramalhete
  * @author Andreia Correia
@@ -144,13 +144,11 @@ public class DistributedCacheLineCounterRelax {
      * Consistency Model: Sequentially Consistent with increment() and decrement().
      */
     public long sum() {
-        //long sum = UNSAFE.getLongVolatile(counters, 0);
         long sum = aVolatileLoad;
         for (int idx = 0; idx < kNumCounters*CACHE_LINE; idx += CACHE_LINE) {
             sum += counters[idx]; 
         }
         UNSAFE.loadFence();
-        sum += aVolatileLoad;
         return sum;
     }
     
