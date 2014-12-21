@@ -53,7 +53,7 @@ static const long READS_ON_RIGHT = 1;
  * We used the Left-Right pattern described in:
  http://concurrencyfreaks.com/2013/12/left-right-concurrency-control.html
  * with the Atomic Long No Version variant implementation described in:
- * http:...
+ * http://concurrencyfreaks.com/2014/12/left-right-atomic-no-version-variant.html
  * <p>
  * TODO: Do some unit testing on the overflow mechanism in depart()
  *
@@ -103,7 +103,7 @@ public:
      *
      * Progress Condition: Wait-Free Population Oblivious (on x86)
      *
-     * @return the current versionIndex
+     * @return the current leftRight
      */
     int arrive(void) {
         const long long lrc = _leftRightCounters.fetch_add(1LL << BIT_INGRESS);
@@ -120,7 +120,7 @@ public:
      *
      * Progress Condition: Wait-Free (on x86)
      *
-     * @param localVersionIndex
+     * @param localLeftRight Pass the value returned by arrive()
      */
     void depart(int localLeftRight) {
         long long lrc;

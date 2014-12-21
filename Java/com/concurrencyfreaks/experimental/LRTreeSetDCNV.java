@@ -42,7 +42,7 @@ import java.util.concurrent.atomic.LongAdder;
  * of view.
  * <p>
  * For more explanations see this post:
- * http:...
+ * http://concurrencyfreaks.com/2014/12/left-right-distributed-counters-no.html
  *
  * @author Pedro Ramalhete
  * @author Andreia Correia
