@@ -33,7 +33,6 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 
 
-
 /**
  * Thread-ID EXchange Mutual Exclusion Lock (Tidex Mutex)
  * 
@@ -53,7 +52,7 @@ import java.util.concurrent.locks.Lock;
  * the x86 case). This means this lock is starvation-free on x86.
  * 
  * More details on this post:
- * http:...
+ * http://concurrencyfreaks.com/2014/12/tidex-mutex.html
  * 
  * TODO: Make a reentrant version
  * 
