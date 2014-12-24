@@ -34,7 +34,7 @@ import java.util.concurrent.locks.Lock;
 
 
 /**
- * Thread-ID EXchange Mutual Exclusion Lock (Tidex Mutex)
+ * <h1>Thread-ID EXchange Mutual Exclusion Lock (Tidex Mutex)</h1>
  * 
  * This is a mutual exclusion lock which we discovered (or so it seams) and
  * is inspired by the Ticket Lock, but uses getAndSet() instead of getAndAdd().
@@ -45,16 +45,17 @@ import java.util.concurrent.locks.Lock;
  * and its negative value.
  * There is also a regular variable that holds state between lock() and 
  * unlock() which we named {@code nextEgress}. 
- * 
+ * <p>
  * Notice that the initial decision of whether to spin or enter the critical
  * section is reached in a wait-free way on x86 or other systems for which
  * getAndSet() is implemented with a single atomic instruction (XCHG in
  * the x86 case). This means this lock is starvation-free on x86.
- * 
+ * <p>
  * More details on this post:
- * http://concurrencyfreaks.com/2014/12/tidex-mutex.html
- * 
+ * <a href="http://concurrencyfreaks.com/2014/12/tidex-mutex.html">http://concurrencyfreaks.com/2014/12/tidex-mutex.html</a>
+ * <p>
  * TODO: Make a reentrant version
+ * TODO: Use a spinning technique similar to the one on StampedLock
  * 
  * @author Pedro Ramalhete
  * @author Andreia Correia
@@ -64,11 +65,17 @@ public class TidexMutex implements Lock {
     private static final int NCPU = Runtime.getRuntime().availableProcessors();
     private static final int MAX_SPIN = (NCPU > 1) ? 1 << 10 : 0;
     
+    // Holds the thread id of the latest thread attempting to acquire the lock
     private final AtomicLong ingress = new AtomicLong(INVALID_TID);
     
+    // Holds the thread id of the thread currently holding the lock or that has
+    // just released the lock.
     @sun.misc.Contended
     private volatile long egress = INVALID_TID;
     
+    // Variable used to pass state between lock() and unlock(). It stores the 
+    // thread id to be put on {@code egress} because unlock() doesn't know if 
+    // it is mytid or its negative.
     private long nextEgress = INVALID_TID;
     
     
