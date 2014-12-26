@@ -27,25 +27,25 @@
  */
 package com.concurrencyfreaks.readindicators;
 
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.LongAdder;
 
-public class RIIngressEgressSingleAtomic implements ReadIndicator {
-    private final AtomicLong ingress = new AtomicLong(0);
-    private final AtomicLong egress = new AtomicLong(0);
+public class RIIngressEgressLongAdder implements ReadIndicator {
+    private final LongAdder ingress = new LongAdder();
+    private final LongAdder egress = new LongAdder();
    
     @Override
     public void arrive() {
-        ingress.getAndIncrement();
+        ingress.increment();
     }
     
     @Override
     public void depart() {
-        egress.getAndIncrement();
+        egress.decrement();
     }
     
     @Override
     public boolean isEmpty() {
         // Order is _very_ important here
-        return egress.get() == ingress.get();
+        return egress.sum() == ingress.sum();
     }
 }
