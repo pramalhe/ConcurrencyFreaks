@@ -64,7 +64,7 @@ public class RIArrayCLQFinalizers implements ReadIndicator {
     private final AtomicReference<AtomicInteger[]> readersStateArrayRef;
 
     
-    RIArrayCLQFinalizers() {
+    public RIArrayCLQFinalizers() {
         readersStateList = new ConcurrentLinkedQueue<AtomicInteger>();
         entry = new ThreadLocal<ReadersEntry>();        
         readersStateArrayRef = new AtomicReference<AtomicInteger[]>(null);
@@ -87,7 +87,6 @@ public class RIArrayCLQFinalizers implements ReadIndicator {
     
     @Override
     public boolean isEmpty() {
-        // We can only do this after the stampedLock has been acquired
         AtomicInteger[] localReadersStateArray = readersStateArrayRef.get();
         if (localReadersStateArray == null) {
             // Set to dummyArray before scanning the readersStateList to impose
@@ -96,15 +95,13 @@ public class RIArrayCLQFinalizers implements ReadIndicator {
             // Copy readersStateList to an array
             localReadersStateArray = readersStateList.toArray(new AtomicInteger[readersStateList.size()]);
             readersStateArrayRef.compareAndSet(dummyArray, localReadersStateArray);            
-        }         
-        
+        }                 
         // Scan the array of Reader states
         for (AtomicInteger readerState : localReadersStateArray) {
             while (readerState != null && readerState.get() == STATE_READING) {
                 return false;
             }
         }
-
         return true;
     }
     

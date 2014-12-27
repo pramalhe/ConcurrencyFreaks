@@ -92,6 +92,15 @@ public class RIDistributedCacheLineCounter implements ReadIndicator {
     }
     
     /**
+     * Default constructor. Uses the number of cores*2 or closest power of 2
+     */
+    public RIDistributedCacheLineCounter() {
+        this.numCounters = Integer.highestOneBit(Runtime.getRuntime().availableProcessors()) << 1;
+        counters = new long[this.numCounters*CACHE_LINE];
+    }
+    
+    
+    /**
      * Progress Condition: Wait-Free Population Oblivious on x86
      * <p>
      * Consistency Model: Sequentially Consistent with arrive() and isEmpty()
@@ -127,6 +136,6 @@ public class RIDistributedCacheLineCounter implements ReadIndicator {
             sum += counters[idx]; 
         }
         UNSAFE.loadFence();
-        return sum > 0;
+        return sum == 0;
     }
 }

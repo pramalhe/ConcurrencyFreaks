@@ -40,7 +40,7 @@ public class RIIngressEgressLongAdder implements ReadIndicator {
     
     @Override
     public void depart() {
-        egress.decrement();
+        egress.increment();
     }
     
     @Override
