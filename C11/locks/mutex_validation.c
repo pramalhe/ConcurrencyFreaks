@@ -39,6 +39,7 @@
 #include "mpsc_mutex.h"
 #include "ticket_mutex.h"
 #include "clh_mutex.h"
+#include "tidex_mutex.h"
 
 
 /*
@@ -57,12 +58,14 @@ pthread_spinlock_t pspin;
 mpsc_mutex_t mpscmutex;
 ticket_mutex_t ticketmutex;
 clh_mutex_t clhmutex;
+tidex_mutex_t tidexmutex;
 
 #define TYPE_PTHREAD_MUTEX   0
 #define TYPE_PTHREAD_SPIN    1
 #define TYPE_MPSC_MUTEX      2
 #define TYPE_TICKET_MUTEX    3
-#define TYPE_EXCHG_MUTEX     4
+#define TYPE_CLH_MUTEX       4
+#define TYPE_TIDEX_MUTEX     5
 
 int g_which_lock = TYPE_PTHREAD_MUTEX;
 int g_quit = 0;
@@ -122,7 +125,7 @@ void worker_thread(int *tid) {
                 if (array1[i] != array1[0]) printf("ERROR\n");
             }
             ticket_mutex_unlock(&ticketmutex);
-        } else {
+        } else if (g_which_lock == TYPE_CLH_MUTEX){
             /* Critical path for clh_mutex_t */
             clh_mutex_lock(&clhmutex);
             for (i = 0; i < ARRAY_SIZE; i++) array1[i]++;
@@ -130,6 +133,14 @@ void worker_thread(int *tid) {
                 if (array1[i] != array1[0]) printf("ERROR\n");
             }
             clh_mutex_unlock(&clhmutex);
+        } else  {
+            /* Critical path for tidex_mutex_t */
+            tidex_mutex_lock(&tidexmutex);
+            for (i = 0; i < ARRAY_SIZE; i++) array1[i]++;
+            for (i = 1; i < ARRAY_SIZE; i++) {
+                if (array1[i] != array1[0]) printf("ERROR\n");
+            }
+            tidex_mutex_unlock(&tidexmutex);
         }
         iterations++;
     }
@@ -165,6 +176,7 @@ int main(void) {
     mpsc_mutex_init(&mpscmutex);
     ticket_mutex_init(&ticketmutex);
     clh_mutex_init(&clhmutex);
+    tidex_mutex_init(&tidexmutex);
 
     printf("Starting benchmark with %d threads\n", NUM_THREADS);
     printf("Array has size of %d\n", ARRAY_SIZE);
@@ -233,8 +245,8 @@ int main(void) {
     g_quit = 0;
     printOperationsPerSecond();
 
-    printf("Doing test for exchg_mutex_t, sleeping for 10 seconds...\n");
-    g_which_lock = TYPE_EXCHG_MUTEX;
+    printf("Doing test for clh_mutex_t, sleeping for 10 seconds...\n");
+    g_which_lock = TYPE_CLH_MUTEX;
     clearOperCounters();
     // Start the threads
     for(i = 0; i < NUM_THREADS; i++ ) {
@@ -249,12 +261,30 @@ int main(void) {
     g_quit = 0;
     printOperationsPerSecond();
 
+    printf("Doing test for tidex_mutex_t, sleeping for 10 seconds...\n");
+    g_which_lock = TYPE_TIDEX_MUTEX;
+    clearOperCounters();
+    // Start the threads
+    for(i = 0; i < NUM_THREADS; i++ ) {
+        threadid[i] = i;
+        pthread_create(&pthread_list[i], NULL, (void *(*)(void *))worker_thread, (void *)&threadid[i]);
+    }
+    sleep(10);
+    g_quit = 1;
+    for (i = 0; i < NUM_THREADS; i++) {
+        pthread_join(pthread_list[i], NULL);
+    }
+    g_quit = 0;
+    printOperationsPerSecond();
+
+
     /* Destroy locks */
     pthread_mutex_destroy(&pmutex);
     pthread_spin_destroy(&pspin);
     mpsc_mutex_destroy(&mpscmutex);
     ticket_mutex_destroy(&ticketmutex);
     clh_mutex_destroy(&clhmutex);
+    tidex_mutex_destroy(&tidexmutex);
 
     /* Release memory for the array instances and threads */
     free(array1);

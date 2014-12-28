@@ -57,5 +57,20 @@ https://github.com/pramalhe/ConcurrencyFreaks/tree/master/presentations/CLH-RWLo
 
 
 
+-------------------------------------------------------------------------------
+Tidex Mutex
+
+tidex_mutex.h
+tidex_mutex.c
+A new algorithm for a mutual exclusion lock that is a kind of 
+oversimplification of the CLH lock but has properties similar to a Ticket Lock
+and uses an atomic_exchange() instead of an atomic_fetch_add().
+It is starvation-free.
+More details can be seen here:
+http://concurrencyfreaks.com/2014/12/tidex-mutex.html
+
+
+
+
 
 
