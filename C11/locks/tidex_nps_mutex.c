@@ -26,7 +26,9 @@
  ******************************************************************************
  */
 
-/* Thread ID EXchange Mutual Exclusion Lock (Tidex Mutex)
+/* Thread ID EXchange Mutual Exclusion Lock (Tidex Mutex) - Non Pthread_Self variant
+ *
+ * This is the same as Tidex Mutex but does not use pthread_self().
  *
  * This is a mutual exclusion lock which we discovered (or so it seams) and
  * is inspired by the Ticket Lock, but uses atomic_exchange() instead of
@@ -46,19 +48,42 @@
  * atomic_exchange() is implemented with a single atomic instruction (XCHG in
  * the x86 case). This means this lock is starvation-free on x86.
  *
- * More info on this post:
+ * More info on these posts:
+ * http://concurrencyfreaks.com/2014/12/tidex-mutex.html
  * http://concurrencyfreaks.com/2014/12/tidex-mutex-in-c11.html
+ * ...
  *
  * TODO: Make a reentrant version
  *
  * @author Pedro Ramalhete
  * @author Andreia Correia
  */
-#include "tidex_mutex.h"
+#include "tidex_nps_mutex.h"
+
+/*
+ * This variable can even be an 'atomic_short' because it is unlikely that your
+ * application will create more than 32767 threads. This also means that
+ * both ingress and egress can be of type 'atomic_short', which can save memory.
+ *
+ * We start at '1' because we want to use the negative of the value as well.
+ * Alternatively, we could start at zero but then we would have to advance
+ * this index 2 at a time.
+ *
+ * This is shared by all tidex_nps_mutex_t instances to save memory.
+ */
+static atomic_long globalThreadIndex = ATOMIC_VAR_INIT(1);
+
+/*
+ * The index of the thread is stored in a thread-local variable that is
+ * shared by all instances of tidex_nps_mutex_t.
+ * If the value is the initialized of INVALID_TID (zero) then we need to
+ * get a value from globalThreadIndex using atomic_fetch_add(), once and
+ * only once per thread.
+ */
+static _Thread_local long tlThreadIndex = INVALID_TID;
 
 
-
-void tidex_mutex_init(tidex_mutex_t * self)
+void tidex_nps_mutex_init(tidex_nps_mutex_t * self)
 {
     self->nextEgress = INVALID_TID;
     atomic_store(&self->ingress, INVALID_TID);
@@ -66,7 +91,7 @@ void tidex_mutex_init(tidex_mutex_t * self)
 }
 
 
-void tidex_mutex_destroy(tidex_mutex_t * self)
+void tidex_nps_mutex_destroy(tidex_nps_mutex_t * self)
 {
     // Kind of unnecessary, but oh well
     atomic_store(&self->ingress, INVALID_TID);
@@ -86,11 +111,15 @@ void tidex_mutex_destroy(tidex_mutex_t * self)
  * pthread_self() when could in fact use pthread_self(), but that's not
  * a problem.
  */
-void tidex_mutex_lock(tidex_mutex_t * self)
+void tidex_nps_mutex_lock(tidex_nps_mutex_t * self)
 {
-    long long mytid = (long long)pthread_self();
+    long mytid = tlThreadIndex;
+    if (mytid == INVALID_TID) {
+        tlThreadIndex = atomic_fetch_add(&globalThreadIndex, 1);
+        mytid = tlThreadIndex;
+    }
     if (atomic_load_explicit(&self->egress, memory_order_relaxed) == mytid) mytid = -mytid;
-    long long prevtid = atomic_exchange(&self->ingress, mytid);
+    long prevtid = atomic_exchange(&self->ingress, mytid);
     while (atomic_load(&self->egress) != prevtid) {
         // Spin for a while and then yield
         for (int k = MAX_SPIN; k > 0; k--) {
@@ -111,7 +140,7 @@ void tidex_mutex_lock(tidex_mutex_t * self)
  * Unlocks the mutex
  * Progress Condition: Wait-Free Population Oblivious
  */
-void tidex_mutex_unlock(tidex_mutex_t * self)
+void tidex_nps_mutex_unlock(tidex_nps_mutex_t * self)
 {
     atomic_store(&self->egress, self->nextEgress);
 }
@@ -126,12 +155,16 @@ void tidex_mutex_unlock(tidex_mutex_t * self)
  * still wait-free because if the CAS fails we give up (there
  * is already another thread holding the lock).
  */
-int tidex_mutex_trylock(tidex_mutex_t * self)
+int tidex_nps_mutex_trylock(tidex_nps_mutex_t * self)
 {
-    long long localE = atomic_load(&self->egress);
-    long long localI = atomic_load(&self->ingress);
+    long localE = atomic_load(&self->egress);
+    long localI = atomic_load(&self->ingress);
     if (localE != localI) return EBUSY;
-    long long mytid = (long long)pthread_self();
+    long mytid = tlThreadIndex;
+    if (mytid == INVALID_TID) {
+        tlThreadIndex = atomic_fetch_add(&globalThreadIndex, 1);
+        mytid = tlThreadIndex;
+    }
     if (localE == mytid) mytid = -mytid;
     if (!atomic_compare_exchange_strong(&self->ingress, &localI, mytid)) return EBUSY;
     // Lock has been acquired
