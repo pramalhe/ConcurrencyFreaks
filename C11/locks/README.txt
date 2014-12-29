@@ -70,6 +70,12 @@ More details can be seen here:
 http://concurrencyfreaks.com/2014/12/tidex-mutex.html
 
 
+-------------------------------------------------------------------------------
+Tidex Mutex - No Pthread-Self variant
+
+tidex_nps_mutex.h
+tidex_nps_mutex.c
+Same as Tidex Mutex but without using pthread_self().
 
 
 
