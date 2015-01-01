@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright (c) 2014, Pedro Ramalhete, Andreia Correia
+ * Copyright (c) 2014-2015, Pedro Ramalhete, Andreia Correia
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,6 +41,7 @@
 #include "clh_mutex.h"
 #include "tidex_mutex.h"
 #include "tidex_nps_mutex.h"
+#include "ticket_awn_mutex.h"
 
 
 /*
@@ -61,14 +62,16 @@ ticket_mutex_t ticketmutex;
 clh_mutex_t clhmutex;
 tidex_mutex_t tidexmutex;
 tidex_nps_mutex_t tidexnpsmutex;
+ticket_awn_mutex_t ticketawnmutex;
 
-#define TYPE_PTHREAD_MUTEX   0
-#define TYPE_PTHREAD_SPIN    1
-#define TYPE_MPSC_MUTEX      2
-#define TYPE_TICKET_MUTEX    3
-#define TYPE_CLH_MUTEX       4
-#define TYPE_TIDEX_MUTEX     5
-#define TYPE_TIDEX_NPS_MUTEX 6
+#define TYPE_PTHREAD_MUTEX     0
+#define TYPE_PTHREAD_SPIN      1
+#define TYPE_MPSC_MUTEX        2
+#define TYPE_TICKET_MUTEX      3
+#define TYPE_CLH_MUTEX         4
+#define TYPE_TIDEX_MUTEX       5
+#define TYPE_TIDEX_NPS_MUTEX   6
+#define TYPE_TICKET_AWN_MUTEX  7
 
 int g_which_lock = TYPE_PTHREAD_MUTEX;
 int g_quit = 0;
@@ -144,14 +147,22 @@ void worker_thread(int *tid) {
                 if (array1[i] != array1[0]) printf("ERROR\n");
             }
             tidex_mutex_unlock(&tidexmutex);
-        } else  {
-            /* Critical path for tidex_mutex_t */
+        } else  if (g_which_lock == TYPE_TIDEX_NPS_MUTEX) {
+            /* Critical path for tidex_nps_mutex_t */
             tidex_nps_mutex_lock(&tidexnpsmutex);
             for (i = 0; i < ARRAY_SIZE; i++) array1[i]++;
             for (i = 1; i < ARRAY_SIZE; i++) {
                 if (array1[i] != array1[0]) printf("ERROR\n");
             }
             tidex_nps_mutex_unlock(&tidexnpsmutex);
+        } else  {
+            /* Critical path for ticket_awn_mutex_t */
+            ticket_awn_mutex_lock(&ticketawnmutex);
+            for (i = 0; i < ARRAY_SIZE; i++) array1[i]++;
+            for (i = 1; i < ARRAY_SIZE; i++) {
+                if (array1[i] != array1[0]) printf("ERROR\n");
+            }
+            ticket_awn_mutex_unlock(&ticketawnmutex);
         }
         iterations++;
     }
@@ -189,6 +200,7 @@ int main(void) {
     clh_mutex_init(&clhmutex);
     tidex_mutex_init(&tidexmutex);
     tidex_nps_mutex_init(&tidexnpsmutex);
+    ticket_awn_mutex_init(&ticketawnmutex, 32);
 
     printf("Starting benchmark with %d threads\n", NUM_THREADS);
     printf("Array has size of %d\n", ARRAY_SIZE);
@@ -305,6 +317,22 @@ int main(void) {
     g_quit = 0;
     printOperationsPerSecond();
 
+    printf("Doing test for ticket_awn_mutex_t, sleeping for 10 seconds...\n");
+    g_which_lock = TYPE_TICKET_AWN_MUTEX;
+    clearOperCounters();
+    // Start the threads
+    for(i = 0; i < NUM_THREADS; i++ ) {
+        threadid[i] = i;
+        pthread_create(&pthread_list[i], NULL, (void *(*)(void *))worker_thread, (void *)&threadid[i]);
+    }
+    sleep(10);
+    g_quit = 1;
+    for (i = 0; i < NUM_THREADS; i++) {
+        pthread_join(pthread_list[i], NULL);
+    }
+    g_quit = 0;
+    printOperationsPerSecond();
+
 
     /* Destroy locks */
     pthread_mutex_destroy(&pmutex);
@@ -314,6 +342,7 @@ int main(void) {
     clh_mutex_destroy(&clhmutex);
     tidex_mutex_destroy(&tidexmutex);
     tidex_nps_mutex_destroy(&tidexnpsmutex);
+    ticket_awn_mutex_destroy(&ticketawnmutex);
 
     /* Release memory for the array instances and threads */
     free(array1);

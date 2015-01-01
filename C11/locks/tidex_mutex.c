@@ -129,7 +129,7 @@ void tidex_mutex_unlock(tidex_mutex_t * self)
 int tidex_mutex_trylock(tidex_mutex_t * self)
 {
     long long localE = atomic_load(&self->egress);
-    long long localI = atomic_load(&self->ingress);
+    long long localI = atomic_load_explicit(&self->ingress, memory_order_relaxed);
     if (localE != localI) return EBUSY;
     long long mytid = (long long)pthread_self();
     if (localE == mytid) mytid = -mytid;
