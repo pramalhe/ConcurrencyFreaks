@@ -166,8 +166,9 @@ static long long get_pos_egress_relaxed(ticket_awn_mutex_t * self) {
  * Locks the mutex
  * Progress Condition: Blocking
  *
- * Notice that in the best case scenario there will be one acquire and one
- * release barriers, both in atomic_fetch_add() on ingress.
+ * Notice that in the best case scenario there will be two acquires and one
+ * release barriers, in atomic_fetch_add() on ingress, and in the first
+ * atomic_load() of egress.
  */
 void ticket_awn_mutex_lock(ticket_awn_mutex_t * self)
 {
@@ -204,8 +205,7 @@ void ticket_awn_mutex_lock(ticket_awn_mutex_t * self)
  * Unlocks the mutex
  * Progress Condition: Wait-Free Population Oblivious
  *
- * Notice that in this function there is only one release barrier, and no
- * acquire barriers.
+ * Notice that in this function there is only one release barrier and one acquire barrier.
  */
 void ticket_awn_mutex_unlock(ticket_awn_mutex_t * self)
 {
