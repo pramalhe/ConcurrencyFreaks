@@ -70,26 +70,26 @@ import java.util.concurrent.locks.Lock;
  * </ul>
  * 
  * <h2> Happens-Before </h2>
- * Notice that on {@code unlock()} we write on {@code wnode.isLocked} and then 
- * on {@code egress}, while on lock() we read {@code egress} and then 
- * {@code wnode.islocked}, which creates a Happens-Before:
+ * Notice that on {@code unlock()} we write on {@code wnode.lockIsMine} and 
+ * then on {@code egress}, while on lock() we read {@code egress} and then 
+ * {@code wnode.lockIsMine}, which creates a Happens-Before:
  * <ul>
  * <li>lock(): waitersArray.store() -> egress.load() -> lockIsMine.load()
  * <li>unlock(): waitersArray.load() -> lockIsMine.store() -> egress.store()
  * <li>unlock(): waitersArray.load() -> egress.store()
  * </ul>
  * <h2> Sample scenario </h2>
- * To understand how the negative/positive egress mechanism works, imagine a 
- * sample scenario where Thread 1 (T1) gets a ticket of 10:
+ * To understand how the mechanism works, imagine a sample scenario where 
+ * Thread 1 (T1) gets a ticket of 10:
  *<ul> 
  * <li> egress is 10: T1 has the lock
  * <li> egress is 9: T1 will spin on egress waiting for it to become 10
  * <li> egress is 8: T1 will add its node to the waitersArray and check egress again:
  *   <ul>
- *   <li> egress is still 8: T1 will spin on isLocked
+ *   <li> egress is still 8: T1 will spin on lockIsMine
  *   <li> egress is now  -9: T1 will spin on egress (egress may be about to pass to 10)
  *   <li> egress is now   9: T1 will spin on egress (egress may be about to pass to 10)
- *   <li> egress is now -10: T1 will spin on isLocked (previous thread has seen T1's node)
+ *   <li> egress is now -10: T1 will spin on lockIsMine (previous thread has seen T1's node)
  *   <li> egress is now  10: T1 has the lock
  *   </ul>
  * </ul>
@@ -112,7 +112,7 @@ import java.util.concurrent.locks.Lock;
  * Notice that in Ticket AWN the only atomic operation that is not a simple 
  * load or store is the getAndIncrement() done at the beginning of the
  * lock() method. No other CAS, EXHG, or XADD are done on this algorithm,
- * and many of the atomic loads and stores can be done relaxed.
+ * and several of the atomic loads and stores can be done relaxed.
  * <p>
  * TODO: Implement trylock()
  * 
