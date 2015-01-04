@@ -97,20 +97,19 @@
  * <li> In lock(), the store on wnode->lockIsMine to false can be relaxed
  *      because it will become visible on the release-store of the wnode in
  *      the array and it will only be accessible from that instant in time.
+ * <li> In lock(), the store to egress of ticket can be made relaxed
+ *      because it will become visible at the end of unlock() when we do a
+ *      store with release on either lockIsMine or egress.
  * <li> In unlock(), the first load on egress can be relaxed because it was
  *      read last by the same thread in lock() so it is guaranteed to be up
  *      to date.
  * <li> In unlock(), the store on the self entry of the array to NULL can be
  *      relaxed because it will become visible either with the store with
  *      release on the wnode->lockIsMine to true or on the egress to ticket+1.
- * <li> In unlock(), the store in egress of -(ticket+1) can be relaxed
- *      because before it there is a load with load with acquire of the array
- *      which prevents reordering above, and the store will become visible
- *      when we do the store with release of wnode->lockIsMine to true.
  * </ul>
  *
- * @author Pedro Ramalhete
  * @author Andreia Correia
+ * @author Pedro Ramalhete
  */
 #include "ticket_awnsb_mutex.h"
 

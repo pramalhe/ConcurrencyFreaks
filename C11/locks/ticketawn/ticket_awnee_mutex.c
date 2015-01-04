@@ -103,14 +103,14 @@
  * <li> In unlock(), the store on the self entry of the array to NULL can be
  *      relaxed because it will become visible either with the store with
  *      release on the wnode->lockIsMine to true or on the egress to ticket+1.
- * <li> In unlock(), the store in egress of -(ticket+1) can be relaxed
- *      because before it there is a load with load with acquire of the array
+ * <li> In unlock(), the store in lockIsMine to true can be relaxed
+ *      because before it there is a load with with acquire of the array
  *      which prevents reordering above, and the store will become visible
- *      when we do the store with release of wnode->lockIsMine to true.
+ *      when we do the store with release of egress to ticket+1
  * </ul>
  *
- * @author Pedro Ramalhete
  * @author Andreia Correia
+ * @author Pedro Ramalhete
  */
 #include "ticket_awnee_mutex.h"
 

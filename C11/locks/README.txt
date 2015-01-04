@@ -88,6 +88,9 @@ Ticket AWN - Negative Egress variant
 ticketawn/ticket_awnne_mutex.h
 ticketawn/ticket_awnne_mutex.c
 Ticket Lock with Array of Waiting Nodes (AWN) - Negative Egress variant
+In the "Negative Egress" variant we set the egress to negative to indicate that
+the thread calling unlock() has seen the waiting node from the next waiting
+thread.
 More details here:
 http://concurrencyfreaks.com/2015/01/ticket-lock-array-of-waiting-nodes-awn.html
 
@@ -99,6 +102,8 @@ Ticket AWN - Ends on Egress variant
 ticketawn/ticket_awnee_mutex.h
 ticketawn/ticket_awnee_mutex.c
 Ticket Lock with Array of Waiting Nodes (AWN) - Ends on Egress variant
+In the "Ends on Egress" variant, we always scan the egress one last time before
+acquiring the lock.
 More details here:
 http://concurrencyfreaks.com/2015/01/ticket-lock-array-of-waiting-nodes-awn.html
 
@@ -110,7 +115,11 @@ Ticket AWN - Spins on Both variant
 ticketawn/ticket_awnsb_mutex.h
 ticketawn/ticket_awnsb_mutex.c
 Ticket Lock with Array of Waiting Nodes (AWN) - Spins on Both variant
+In the "Spins on Both" variant, the thread acquiring the lock may have to spin
+on both lockIsMine and egress, waiting for either one of them to allow the lock
+to be acquired.
 More details here:
 http://concurrencyfreaks.com/2015/01/ticket-lock-array-of-waiting-nodes-awn.html
+
 
 
