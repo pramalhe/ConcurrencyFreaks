@@ -62,7 +62,6 @@ void ticket_mutex_destroy(ticket_mutex_t * self)
 void ticket_mutex_lock(ticket_mutex_t * self)
 {
     long lingress = atomic_fetch_add(&self->ingress, 1);
-
     while (lingress != atomic_load(&self->egress)) {
         sched_yield();  // Replace this with thrd_yield() if you use <threads.h>
     }

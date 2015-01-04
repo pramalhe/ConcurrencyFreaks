@@ -32,6 +32,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <sched.h>
+#include <errno.h>
 
 #define INVALID_TID  0
 #define MAX_SPIN (1 << 10)

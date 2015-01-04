@@ -70,13 +70,47 @@ More details can be seen here:
 http://concurrencyfreaks.com/2014/12/tidex-mutex.html
 
 
+
 -------------------------------------------------------------------------------
 Tidex Mutex - No Pthread-Self variant
 
 tidex_nps_mutex.h
 tidex_nps_mutex.c
 Same as Tidex Mutex but without using pthread_self().
+More details here:
+http://concurrencyfreaks.com/2014/12/tidex-mutex-no-pthreadself-variant.html
 
 
+
+-------------------------------------------------------------------------------
+Ticket AWN - Negative Egress variant
+
+ticketawn/ticket_awnne_mutex.h
+ticketawn/ticket_awnne_mutex.c
+Ticket Lock with Array of Waiting Nodes (AWN) - Negative Egress variant
+More details here:
+http://concurrencyfreaks.com/2015/01/ticket-lock-array-of-waiting-nodes-awn.html
+
+
+
+-------------------------------------------------------------------------------
+Ticket AWN - Ends on Egress variant
+
+ticketawn/ticket_awnee_mutex.h
+ticketawn/ticket_awnee_mutex.c
+Ticket Lock with Array of Waiting Nodes (AWN) - Ends on Egress variant
+More details here:
+http://concurrencyfreaks.com/2015/01/ticket-lock-array-of-waiting-nodes-awn.html
+
+
+
+-------------------------------------------------------------------------------
+Ticket AWN - Spins on Both variant
+
+ticketawn/ticket_awnsb_mutex.h
+ticketawn/ticket_awnsb_mutex.c
+Ticket Lock with Array of Waiting Nodes (AWN) - Spins on Both variant
+More details here:
+http://concurrencyfreaks.com/2015/01/ticket-lock-array-of-waiting-nodes-awn.html
 
 

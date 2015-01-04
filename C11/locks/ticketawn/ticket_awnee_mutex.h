@@ -25,19 +25,20 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************
  */
-#ifndef _TICKET_ARRAY_WAITING_NODES_MUTEX_H_
-#define _TICKET_ARRAY_WAITING_NODES_MUTEX_H_
+#ifndef _TICKET_ARRAY_WAITING_NODES_ENDS_EGRESS_MUTEX_H_
+#define _TICKET_ARRAY_WAITING_NODES_ENDS_EGRESS_MUTEX_H_
 
 #include <stdatomic.h>
 #include <stdlib.h>
 #include <sched.h>
 #include <stdbool.h>
+#include <errno.h>
 
 #define DEFAULT_MAX_WAITERS  8
 
 typedef struct {
     atomic_bool lockIsMine;
-} awn_node_t;
+} awnee_node_t;
 
 typedef struct
 {
@@ -46,14 +47,14 @@ typedef struct
     atomic_llong egress;
     char padding2[64];
     int maxArrayWaiters;
-    awn_node_t ** waitersArray;
-} ticket_awn_mutex_t;
+    awnee_node_t ** waitersArray;
+} ticket_awnee_mutex_t;
 
 
-void ticket_awn_mutex_init(ticket_awn_mutex_t * self, int maxArrayWaiters);
-void ticket_awn_mutex_destroy(ticket_awn_mutex_t * self);
-void ticket_awn_mutex_lock(ticket_awn_mutex_t * self);
-void ticket_awn_mutex_unlock(ticket_awn_mutex_t * self);
+void ticket_awnee_mutex_init(ticket_awnee_mutex_t * self, int maxArrayWaiters);
+void ticket_awnee_mutex_destroy(ticket_awnee_mutex_t * self);
+void ticket_awnee_mutex_lock(ticket_awnee_mutex_t * self);
+void ticket_awnee_mutex_unlock(ticket_awnee_mutex_t * self);
+int ticket_awnee_mutex_trylock(ticket_awnee_mutex_t * self);
 
-
-#endif /* _TICKET_ARRAY_WAITING_NODES_MUTEX_H_ */
+#endif /* _TICKET_ARRAY_WAITING_NODES_ENDS_EGRESS_MUTEX_H_ */

@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright (c) 2014, Pedro Ramalhete, Andreia Correia
+ * Copyright (c) 2014-2015, Pedro Ramalhete, Andreia Correia
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,28 +25,36 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  ******************************************************************************
  */
-#ifndef _TICKET_MUTEX_H_
-#define _TICKET_MUTEX_H_
+#ifndef _TICKET_ARRAY_WAITING_NODES_SPINS_BOTH_MUTEX_H_
+#define _TICKET_ARRAY_WAITING_NODES_SPINS_BOTH_MUTEX_H_
 
 #include <stdatomic.h>
 #include <stdlib.h>
-#include <stdio.h>
-#include <pthread.h>
 #include <sched.h>
-#include <errno.h>
+#include <stdbool.h>
+#include <errno.h>          // Needed by EBUSY
+
+#define DEFAULT_MAX_WAITERS  8
+
+typedef struct {
+    atomic_bool lockIsMine;
+} awnsb_node_t;
 
 typedef struct
 {
-    _Atomic long ingress;
-    char padding[64];      // To avoid false sharing with the head and tail
-    _Atomic long egress;
-} ticket_mutex_t;
+    atomic_llong ingress;
+    char padding1[64];      // To avoid false sharing with the ingress and egress
+    atomic_llong egress;
+    char padding2[64];
+    int maxArrayWaiters;
+    awnsb_node_t ** waitersArray;
+} ticket_awnsb_mutex_t;
 
 
-void ticket_mutex_init(ticket_mutex_t * self);
-void ticket_mutex_destroy(ticket_mutex_t * self);
-void ticket_mutex_lock(ticket_mutex_t * self);
-void ticket_mutex_unlock(ticket_mutex_t * self);
+void ticket_awnsb_mutex_init(ticket_awnsb_mutex_t * self, int maxArrayWaiters);
+void ticket_awnsb_mutex_destroy(ticket_awnsb_mutex_t * self);
+void ticket_awnsb_mutex_lock(ticket_awnsb_mutex_t * self);
+void ticket_awnsb_mutex_unlock(ticket_awnsb_mutex_t * self);
+int ticket_awnsb_mutex_trylock(ticket_awnsb_mutex_t * self);
 
-
-#endif /* _TICKET_MUTEX_H_ */
+#endif /* _TICKET_ARRAY_WAITING_NODES_SPINS_BOTH_MUTEX_H_ */

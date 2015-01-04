@@ -39,9 +39,11 @@
 #include "mpsc_mutex.h"
 #include "ticket_mutex.h"
 #include "clh_mutex.h"
+#include "ticketawn/ticket_awnne_mutex.h"
+#include "ticketawn/ticket_awnee_mutex.h"
+#include "ticketawn/ticket_awnsb_mutex.h"
 #include "tidex_mutex.h"
 #include "tidex_nps_mutex.h"
-#include "ticket_awn_mutex.h"
 
 
 /*
@@ -62,16 +64,20 @@ ticket_mutex_t ticketmutex;
 clh_mutex_t clhmutex;
 tidex_mutex_t tidexmutex;
 tidex_nps_mutex_t tidexnpsmutex;
-ticket_awn_mutex_t ticketawnmutex;
+ticket_awnne_mutex_t ticketawnnemutex;
+ticket_awnee_mutex_t ticketawneemutex;
+ticket_awnsb_mutex_t ticketawnsbmutex;
 
-#define TYPE_PTHREAD_MUTEX     0
-#define TYPE_PTHREAD_SPIN      1
-#define TYPE_MPSC_MUTEX        2
-#define TYPE_TICKET_MUTEX      3
-#define TYPE_CLH_MUTEX         4
-#define TYPE_TIDEX_MUTEX       5
-#define TYPE_TIDEX_NPS_MUTEX   6
-#define TYPE_TICKET_AWN_MUTEX  7
+#define TYPE_PTHREAD_MUTEX       0
+#define TYPE_PTHREAD_SPIN        1
+#define TYPE_MPSC_MUTEX          2
+#define TYPE_TICKET_MUTEX        3
+#define TYPE_CLH_MUTEX           4
+#define TYPE_TIDEX_MUTEX         5
+#define TYPE_TIDEX_NPS_MUTEX     6
+#define TYPE_TICKET_AWNNE_MUTEX  7
+#define TYPE_TICKET_AWNEE_MUTEX  8
+#define TYPE_TICKET_AWNSB_MUTEX  9
 
 int g_which_lock = TYPE_PTHREAD_MUTEX;
 int g_quit = 0;
@@ -147,7 +153,7 @@ void worker_thread(int *tid) {
                 if (array1[i] != array1[0]) printf("ERROR\n");
             }
             tidex_mutex_unlock(&tidexmutex);
-        } else  if (g_which_lock == TYPE_TIDEX_NPS_MUTEX) {
+        } else if (g_which_lock == TYPE_TIDEX_NPS_MUTEX) {
             /* Critical path for tidex_nps_mutex_t */
             tidex_nps_mutex_lock(&tidexnpsmutex);
             for (i = 0; i < ARRAY_SIZE; i++) array1[i]++;
@@ -155,14 +161,30 @@ void worker_thread(int *tid) {
                 if (array1[i] != array1[0]) printf("ERROR\n");
             }
             tidex_nps_mutex_unlock(&tidexnpsmutex);
-        } else  {
-            /* Critical path for ticket_awn_mutex_t */
-            ticket_awn_mutex_lock(&ticketawnmutex);
+        } else if (g_which_lock == TYPE_TICKET_AWNNE_MUTEX) {
+            /* Critical path for ticket_awnne_mutex_t */
+            ticket_awnne_mutex_lock(&ticketawnnemutex);
             for (i = 0; i < ARRAY_SIZE; i++) array1[i]++;
             for (i = 1; i < ARRAY_SIZE; i++) {
                 if (array1[i] != array1[0]) printf("ERROR\n");
             }
-            ticket_awn_mutex_unlock(&ticketawnmutex);
+            ticket_awnne_mutex_unlock(&ticketawnnemutex);
+        } else if (g_which_lock == TYPE_TICKET_AWNEE_MUTEX) {
+            /* Critical path for ticket_awnee_mutex_t */
+            ticket_awnee_mutex_lock(&ticketawneemutex);
+            for (i = 0; i < ARRAY_SIZE; i++) array1[i]++;
+            for (i = 1; i < ARRAY_SIZE; i++) {
+                if (array1[i] != array1[0]) printf("ERROR\n");
+            }
+            ticket_awnee_mutex_unlock(&ticketawneemutex);
+        } else {
+            /* Critical path for ticket_awnsb_mutex_t */
+            ticket_awnsb_mutex_lock(&ticketawnsbmutex);
+            for (i = 0; i < ARRAY_SIZE; i++) array1[i]++;
+            for (i = 1; i < ARRAY_SIZE; i++) {
+                if (array1[i] != array1[0]) printf("ERROR\n");
+            }
+            ticket_awnsb_mutex_unlock(&ticketawnsbmutex);
         }
         iterations++;
     }
@@ -200,7 +222,9 @@ int main(void) {
     clh_mutex_init(&clhmutex);
     tidex_mutex_init(&tidexmutex);
     tidex_nps_mutex_init(&tidexnpsmutex);
-    ticket_awn_mutex_init(&ticketawnmutex, 32);
+    ticket_awnne_mutex_init(&ticketawnnemutex, 34);
+    ticket_awnee_mutex_init(&ticketawneemutex, 34);
+    ticket_awnsb_mutex_init(&ticketawnsbmutex, 34);
 
     printf("Starting benchmark with %d threads\n", NUM_THREADS);
     printf("Array has size of %d\n", ARRAY_SIZE);
@@ -208,7 +232,7 @@ int main(void) {
     // Create the threads
     pthread_list = (pthread_t *)calloc(sizeof(pthread_t), NUM_THREADS);
 
-    printf("Doing test for pthread_mutex_t, sleeping for 10 seconds...\n");
+    printf("pthread_mutex_t, sleeping for 10 seconds...\n");
     g_which_lock = TYPE_PTHREAD_MUTEX;
     clearOperCounters();
     // Start the threads
@@ -225,7 +249,7 @@ int main(void) {
     g_quit = 0;
     printOperationsPerSecond();
 
-    printf("Doing test for pthread_spin_t, sleeping for 10 seconds\n");
+    printf("pthread_spin_t, sleeping for 10 seconds\n");
     g_which_lock = TYPE_PTHREAD_SPIN;
     clearOperCounters();
     for(i = 0; i < NUM_THREADS; i++ ) {
@@ -239,7 +263,7 @@ int main(void) {
     g_quit = 0;
     printOperationsPerSecond();
 
-    printf("Doing test for mpsc_mutex_t, sleeping for 10 seconds\n");
+    printf("mpsc_mutex_t, sleeping for 10 seconds\n");
     g_which_lock = TYPE_MPSC_MUTEX;
     clearOperCounters();
     for(i = 0; i < NUM_THREADS; i++ ) {
@@ -253,7 +277,7 @@ int main(void) {
     g_quit = 0;
     printOperationsPerSecond();
 
-    printf("Doing test for ticket_mutex_t, sleeping for 10 seconds...\n");
+    printf("ticket_mutex_t, sleeping for 10 seconds...\n");
     g_which_lock = TYPE_TICKET_MUTEX;
     clearOperCounters();
     // Start the threads
@@ -269,7 +293,7 @@ int main(void) {
     g_quit = 0;
     printOperationsPerSecond();
 
-    printf("Doing test for clh_mutex_t, sleeping for 10 seconds...\n");
+    printf("clh_mutex_t, sleeping for 10 seconds...\n");
     g_which_lock = TYPE_CLH_MUTEX;
     clearOperCounters();
     // Start the threads
@@ -285,7 +309,7 @@ int main(void) {
     g_quit = 0;
     printOperationsPerSecond();
 
-    printf("Doing test for tidex_mutex_t, sleeping for 10 seconds...\n");
+    printf("tidex_mutex_t, sleeping for 10 seconds...\n");
     g_which_lock = TYPE_TIDEX_MUTEX;
     clearOperCounters();
     // Start the threads
@@ -301,7 +325,7 @@ int main(void) {
     g_quit = 0;
     printOperationsPerSecond();
 
-    printf("Doing test for tidex_nps_mutex_t, sleeping for 10 seconds...\n");
+    printf("tidex_nps_mutex_t, sleeping for 10 seconds...\n");
     g_which_lock = TYPE_TIDEX_NPS_MUTEX;
     clearOperCounters();
     // Start the threads
@@ -317,8 +341,40 @@ int main(void) {
     g_quit = 0;
     printOperationsPerSecond();
 
-    printf("Doing test for ticket_awn_mutex_t, sleeping for 10 seconds...\n");
-    g_which_lock = TYPE_TICKET_AWN_MUTEX;
+    printf("ticket_awnne_mutex_t (Negative Egress), sleeping for 10 seconds...\n");
+    g_which_lock = TYPE_TICKET_AWNNE_MUTEX;
+    clearOperCounters();
+    // Start the threads
+    for(i = 0; i < NUM_THREADS; i++ ) {
+        threadid[i] = i;
+        pthread_create(&pthread_list[i], NULL, (void *(*)(void *))worker_thread, (void *)&threadid[i]);
+    }
+    sleep(10);
+    g_quit = 1;
+    for (i = 0; i < NUM_THREADS; i++) {
+        pthread_join(pthread_list[i], NULL);
+    }
+    g_quit = 0;
+    printOperationsPerSecond();
+
+    printf("ticket_awnee_mutex_t (Ends on Egress), sleeping for 10 seconds...\n");
+    g_which_lock = TYPE_TICKET_AWNEE_MUTEX;
+    clearOperCounters();
+    // Start the threads
+    for(i = 0; i < NUM_THREADS; i++ ) {
+        threadid[i] = i;
+        pthread_create(&pthread_list[i], NULL, (void *(*)(void *))worker_thread, (void *)&threadid[i]);
+    }
+    sleep(10);
+    g_quit = 1;
+    for (i = 0; i < NUM_THREADS; i++) {
+        pthread_join(pthread_list[i], NULL);
+    }
+    g_quit = 0;
+    printOperationsPerSecond();
+
+    printf("ticket_awnsb_mutex_t (Spins on Both), sleeping for 10 seconds...\n");
+    g_which_lock = TYPE_TICKET_AWNSB_MUTEX;
     clearOperCounters();
     // Start the threads
     for(i = 0; i < NUM_THREADS; i++ ) {
@@ -342,7 +398,9 @@ int main(void) {
     clh_mutex_destroy(&clhmutex);
     tidex_mutex_destroy(&tidexmutex);
     tidex_nps_mutex_destroy(&tidexnpsmutex);
-    ticket_awn_mutex_destroy(&ticketawnmutex);
+    ticket_awnne_mutex_destroy(&ticketawnnemutex);
+    ticket_awnee_mutex_destroy(&ticketawneemutex);
+    ticket_awnsb_mutex_destroy(&ticketawnsbmutex);
 
     /* Release memory for the array instances and threads */
     free(array1);

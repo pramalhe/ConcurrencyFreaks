@@ -71,17 +71,15 @@
  * <li>unlock(): waitersArray.load() -> egress.store()
  * </ul>
  * <h2> Sample scenario </h2>
- * To understand how the negative/positive egress mechanism works, imagine a
- * sample scenario where Thread 1 (T1) gets a ticket of 10:
- *<ul>
+ * To understand how this mechanism works, imagine a sample scenario where
+ * Thread 1 (T1) gets a ticket of 10:
+ * <ul>
  * <li> egress is 10: T1 has the lock
  * <li> egress is 9: T1 will spin on egress waiting for it to become 10
  * <li> egress is 8: T1 will add its node to the waitersArray and check egress again:
  *   <ul>
- *   <li> egress is still 8: T1 will spin on isLocked
- *   <li> egress is now  -9: T1 will spin on egress (egress may be about to pass to 10)
+ *   <li> egress is still 8: T1 will spin on lockIsMine and finally on egress
  *   <li> egress is now   9: T1 will spin on egress (egress may be about to pass to 10)
- *   <li> egress is now -10: T1 will spin on isLocked (previous thread has seen T1's node)
  *   <li> egress is now  10: T1 has the lock
  *   </ul>
  * </ul>
@@ -115,8 +113,7 @@
  * @author Pedro Ramalhete
  * @author Andreia Correia
  */
-#include <errno.h>          // Needed by EBUSY
-#include "ticket_awn_mutex.h"
+#include "ticket_awnne_mutex.h"
 
 /*
  * Each thread has its own awn_node_t instance. The design goal is for each
@@ -124,7 +121,7 @@
  * instance in the lockIsMine variable, instead of all threads spinning on the
  * egress variable, thus reducing traffic on the cache-coherence system.
  */
-static _Thread_local awn_node_t tlNode;
+static _Thread_local awnne_node_t tlNode;
 
 
 /**
@@ -135,29 +132,29 @@ static _Thread_local awn_node_t tlNode;
  *                        threads expected to concurrently attempt to acquire
  *                        the lock.
  */
-void ticket_awn_mutex_init(ticket_awn_mutex_t * self, int maxArrayWaiters)
+void ticket_awnne_mutex_init(ticket_awnne_mutex_t * self, int maxArrayWaiters)
 {
     atomic_store(&self->ingress, 0);
     atomic_store(&self->egress, 0);
     self->maxArrayWaiters = maxArrayWaiters;
-    self->waitersArray = (awn_node_t **)malloc(self->maxArrayWaiters*sizeof(awn_node_t *));
+    self->waitersArray = (awnne_node_t **)malloc(self->maxArrayWaiters*sizeof(awnne_node_t *));
     for (int i = 0; i < self->maxArrayWaiters; i++) self->waitersArray[i] = ATOMIC_VAR_INIT(NULL);
 }
 
 
-void ticket_awn_mutex_destroy(ticket_awn_mutex_t * self)
+void ticket_awnne_mutex_destroy(ticket_awnne_mutex_t * self)
 {
     atomic_store(&self->ingress, 0);
     atomic_store(&self->egress, 0);
     free(self->waitersArray);
 }
 
-static long long get_pos_egress(ticket_awn_mutex_t * self) {
+static long long get_pos_egress(ticket_awnne_mutex_t * self) {
     long long localEgress = atomic_load(&self->egress);
     return localEgress > 0 ? localEgress : -localEgress;
 }
 
-static long long get_pos_egress_relaxed(ticket_awn_mutex_t * self) {
+static long long get_pos_egress_relaxed(ticket_awnne_mutex_t * self) {
     long long localEgress = atomic_load_explicit(&self->egress, memory_order_relaxed);
     return localEgress > 0 ? localEgress : -localEgress;
 }
@@ -170,7 +167,7 @@ static long long get_pos_egress_relaxed(ticket_awn_mutex_t * self) {
  * release barriers, in atomic_fetch_add() on ingress, and in the first
  * atomic_load() of egress.
  */
-void ticket_awn_mutex_lock(ticket_awn_mutex_t * self)
+void ticket_awnne_mutex_lock(ticket_awnne_mutex_t * self)
 {
     const long long ticket = atomic_fetch_add(&self->ingress, 1);
     if (atomic_load(&self->egress) == ticket) return;
@@ -182,7 +179,7 @@ void ticket_awn_mutex_lock(ticket_awn_mutex_t * self)
     while ((ticket-get_pos_egress(self)) >= (self->maxArrayWaiters-1)) sched_yield();
 
     // There is a spot for us on the array, so place our node there
-    awn_node_t * wnode = &tlNode;
+    awnne_node_t * wnode = &tlNode;
     // Reset lockIsMine from previous usages
     atomic_store_explicit(&wnode->lockIsMine, false, memory_order_relaxed);
     atomic_store(&self->waitersArray[(int)(ticket % self->maxArrayWaiters)], wnode);
@@ -207,13 +204,13 @@ void ticket_awn_mutex_lock(ticket_awn_mutex_t * self)
  *
  * Notice that in this function there is only one release barrier and one acquire barrier.
  */
-void ticket_awn_mutex_unlock(ticket_awn_mutex_t * self)
+void ticket_awnne_mutex_unlock(ticket_awnne_mutex_t * self)
 {
-    long long ticket = atomic_load_explicit(&self->egress, memory_order_relaxed);
+    long long ticket = get_pos_egress_relaxed(self);
     // Clear up our entry in the array before releasing the lock.
     atomic_store_explicit(&self->waitersArray[(int)(ticket % self->maxArrayWaiters)], NULL, memory_order_relaxed);
     // We could do this load as relaxed per se but then the store on egress of -(ticket+1) could be re-ordered to be before, and we don't want that
-    awn_node_t * wnode = atomic_load(&self->waitersArray[(int)((ticket+1) % self->maxArrayWaiters)]);
+    awnne_node_t * wnode = atomic_load(&self->waitersArray[(int)((ticket+1) % self->maxArrayWaiters)]);
     if (wnode != NULL) {
         // We saw the node in waitersArray, so tell the thread to spin on lockIsMine by setting a negative egress
         atomic_store_explicit(&self->egress, -(ticket+1), memory_order_relaxed);
@@ -230,7 +227,7 @@ void ticket_awn_mutex_unlock(ticket_awn_mutex_t * self)
  * Returns 0 if the lock has been acquired and EBUSY otherwise
  * Progress Condition: Wait-Free Population Oblivious
  */
-int ticket_awn_mutex_trylock(ticket_awn_mutex_t * self)
+int ticket_awnne_mutex_trylock(ticket_awnne_mutex_t * self)
 {
     long long localE = atomic_load(&self->egress);
     long long localI = atomic_load_explicit(&self->ingress, memory_order_relaxed);
