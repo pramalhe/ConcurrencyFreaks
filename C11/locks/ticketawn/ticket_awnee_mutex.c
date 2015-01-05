@@ -70,8 +70,8 @@
  * <li>unlock(): waitersArray.load() -> egress.store()
  * </ul>
  * <h2> Sample scenario </h2>
- * To understand how the negative/positive egress mechanism works, imagine a
- * sample scenario where Thread 1 (T1) gets a ticket of 10:
+ * To understand how the egress mechanism works, imagine a sample scenario
+ * where Thread 1 (T1) gets a ticket of 10:
  * <ul>
  * <li> egress is 10: T1 has the lock
  * <li> egress is 9: T1 will spin on egress waiting for it to become 10
