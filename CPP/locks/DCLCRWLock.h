@@ -20,9 +20,9 @@
 // Cache line optimization constants
 #define DCLC_CACHE_LINE          64               // Size in bytes of a cache line
 #define DCLC_CACHE_PADD          (DCLC_CACHE_LINE-sizeof(std::atomic<int>))
-#define DCLC_NUMBER_OF_CORES  32
-#define DCLC_HASH_RATIO       3
-#define DCLC_COUNTERS_RATIO  (DCLC_HASH_RATIO*DCLC_CACHE_LINE/sizeof(int))
+#define DCLC_NUMBER_OF_CORES     32
+#define DCLC_HASH_RATIO           3
+#define DCLC_COUNTERS_RATIO      (DCLC_HASH_RATIO*DCLC_CACHE_LINE/sizeof(int))
 
 
 /* This is not recursive/reentrant */

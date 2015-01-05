@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright (c) 2012-2013, Pedro Ramalhete, Andreia Correia
+ * Copyright (c) 2012-2015, Pedro Ramalhete, Andreia Correia
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -93,9 +93,9 @@ DCLCRWLock::~DCLCRWLock ()
 int DCLCRWLock::thread_2_tid (void) {
     std::hash<std::thread::id> hashFunc;
     std::size_t tid = hashFunc(std::this_thread::get_id());
-	tid ^= (tid << 21);
-	tid ^= (tid >> 35);
-	tid ^= (tid << 4);
+    tid ^= (tid << 21);
+    tid ^= (tid >> 35);
+    tid ^= (tid << 4);
     return (int)((tid % num_cores)*DCLC_COUNTERS_RATIO);
 }
 
@@ -105,19 +105,19 @@ int DCLCRWLock::thread_2_tid (void) {
  */
 void DCLCRWLock::sharedLock (void)
 {
-	const int tid = thread_2_tid();
+    const int tid = thread_2_tid();
     while (1) {
         readers_counters[tid].fetch_add(1);
         if (writers_mutex.load() == DCLC_RWL_UNLOCKED) {
-			// Acquired lock in read-only mode
-			return;
-		} else {
+            // Acquired lock in read-only mode
+            return;
+        } else {
             // A Writer has acquired the lock, must reset to 0 and wait
-			readers_counters[tid].fetch_add(-1);
+            readers_counters[tid].fetch_add(-1);
             while (writers_mutex.load() == DCLC_RWL_LOCKED) {
-            	this_thread::yield();
+                this_thread::yield();
             }
-		}
+        }
     }
 }
 
@@ -128,14 +128,14 @@ void DCLCRWLock::sharedLock (void)
  */
 bool DCLCRWLock::sharedUnlock (void)
 {
-	const int tid = thread_2_tid();
-	if (readers_counters[tid].fetch_add(-1) <= 0) {
-		// ERROR: no matching lock() for this unlock()
-		cout << "ERROR: no matching lock() for this unlock()\n";
+    const int tid = thread_2_tid();
+    if (readers_counters[tid].fetch_add(-1) <= 0) {
+        // ERROR: no matching lock() for this unlock()
+        cout << "ERROR: no matching lock() for this unlock()\n";
         return false;
-	} else {
-		return true;
-	}
+    } else {
+        return true;
+    }
 }
 
 
@@ -144,13 +144,12 @@ bool DCLCRWLock::sharedUnlock (void)
  */
 void DCLCRWLock::exclusiveLock (void)
 {
-	int old = DCLC_RWL_UNLOCKED;
+    int old = DCLC_RWL_UNLOCKED;
     // Try to acquire the write-lock
     while (!writers_mutex.compare_exchange_strong(old, DCLC_RWL_LOCKED)) {
-    	this_thread::yield();
-    	old = DCLC_RWL_UNLOCKED;
+        this_thread::yield();
+        old = DCLC_RWL_UNLOCKED;
     }
-
     // Write-lock was acquired, now wait for any running Readers to finish
     for (int tid = 0; tid < counters_length; tid += DCLC_COUNTERS_RATIO) {
         while (readers_counters[tid].load() > 0) {
@@ -165,14 +164,13 @@ void DCLCRWLock::exclusiveLock (void)
  */
 bool DCLCRWLock::exclusiveUnlock (void)
 {
-	// TODO: use relaxed atomic?
-	if (writers_mutex.load() != DCLC_RWL_LOCKED) {
-		// ERROR: Tried to unlock an non-locked write-lock
-		cout << "********* ERROR: Tried to unlock an non-locked write-lock\n";
-		return false;
-	}
-	writers_mutex.store(DCLC_RWL_UNLOCKED);
-	return true;
+	if (writers_mutex.load(std::memory_order_relaxed) != DCLC_RWL_LOCKED) {
+        // ERROR: Tried to unlock an non-locked write-lock
+        cout << "********* ERROR: Tried to unlock an non-locked write-lock\n";
+        return false;
+    }
+    writers_mutex.store(DCLC_RWL_UNLOCKED);
+    return true;
 }
 
 
