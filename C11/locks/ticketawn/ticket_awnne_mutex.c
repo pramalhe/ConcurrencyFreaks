@@ -74,12 +74,13 @@
  * To understand how this mechanism works, imagine a sample scenario where
  * Thread 1 (T1) gets a ticket of 10:
  * <ul>
- * <li> egress is 10: T1 has the lock
+ *  <li> egress is 10: T1 has the lock
  * <li> egress is 9: T1 will spin on egress waiting for it to become 10
  * <li> egress is 8: T1 will add its node to the waitersArray and check egress again:
- *   <ul>
- *   <li> egress is still 8: T1 will spin on lockIsMine and finally on egress
+ *   <li> egress is still 8: T1 will spin on lockIsMine
+ *   <li> egress is now  -9: T1 will spin on egress (egress may be about to pass to 10)
  *   <li> egress is now   9: T1 will spin on egress (egress may be about to pass to 10)
+ *   <li> egress is now -10: T1 will spin on lockIsMine (previous thread has seen T1's node)
  *   <li> egress is now  10: T1 has the lock
  *   </ul>
  * </ul>
