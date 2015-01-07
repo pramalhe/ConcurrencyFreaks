@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright (c) 2014, Pedro Ramalhete, Andreia Correia
+ * Copyright (c) 2015, Pedro Ramalhete, Andreia Correia
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,35 +27,38 @@
  */
 package com.concurrencyfreaks.readindicators;
 
-import java.util.concurrent.atomic.AtomicIntegerArray;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
-public class RIStaticPerThread implements ReadIndicator {
-    private final AtomicIntegerArray perThreadState;
-    private final int maxNumThreads;
-    
-    private static final int STATE_NOT_READING = 0;
-    private static final int STATE_READING = 1;
-    
-    public RIStaticPerThread(int maxNumThreads) {
-        this.maxNumThreads = maxNumThreads;
-        this.perThreadState = new AtomicIntegerArray(maxNumThreads);
-    }
 
+/**
+ * <h1> Read Indicator with ConcurrentLinkedQueue of Thread references </h1>
+ * 
+ * <ul>
+ * <li> {@link arrive()}  - O(1), Lock-Free
+ * <li> depart()  - O(N_Threads), Lock-Free
+ * <li> isEmpty() - O(1), Lock-Free
+ * </ul>
+ * Memory usage: The number of nodes is equal to the number of threads currently "arrived".
+ * No threads "arrived" means no memory usage, apart from the empty CLQ instance.
+ * 
+ * @author Pedro Ramalhete
+ * @author Andreia Correia
+ */
+public class RIThreadCLQ implements ReadIndicator {
+    private final ConcurrentLinkedQueue<Thread> clq = new ConcurrentLinkedQueue<Thread>(); 
+   
     @Override
     public void arrive() {
-        perThreadState.set((int)Thread.currentThread().getId(), STATE_READING);
+        clq.add(Thread.currentThread());
     }
     
     @Override
     public void depart() {
-        perThreadState.set((int)Thread.currentThread().getId(), STATE_NOT_READING);
+        clq.remove(Thread.currentThread());
     }
     
     @Override
     public boolean isEmpty() {
-        for (int tid = 0; tid < maxNumThreads; tid++) {
-            if (perThreadState.get(tid) == STATE_READING) return false;
-        }
-        return true;
+        return clq.isEmpty();
     }
 }
