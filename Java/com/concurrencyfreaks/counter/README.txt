@@ -13,3 +13,6 @@ DistributedCacheLineCounterRelax - Similar to DCLC but uses relaxed optimization
 OffByXCounter - A Counter that uses the "Off-by-X" pattern.
     http://concurrencyfreaks.com/2013/08/concurrency-pattern-off-by-x-counter.html
         
+ResLinMonStatisticalCounter - A statistical counter similar to DCLC but it has a 
+    reset() method which is linearizable with all other methods in the class.
+    http://...        

@@ -104,8 +104,8 @@ public class TestCounters {
         
         System.out.println("get()/ms = "+totalNumGets/numMilis+"    increment()/ms = "+totalNumIncrements/numMilis);
         
-        if (stype == TestCase.LongAdderCVS) System.out.println("Cells.length = "+longAdderCVS.getCellsLength());
-        if (stype == TestCase.LongAdderRelax) System.out.println("Cells.length = "+longAdderRelax.getCellsLength());
+        //if (stype == TestCase.LongAdderCVS) System.out.println("Cells.length = "+longAdderCVS.getCellsLength());
+        //if (stype == TestCase.LongAdderRelax) System.out.println("Cells.length = "+longAdderRelax.getCellsLength());
     }
     
     private void sleepAndStopWorkerThreads(int numThreads) {
