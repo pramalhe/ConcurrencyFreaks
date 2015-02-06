@@ -27,7 +27,7 @@
  */
 
 /*
-  * <h1>Ticket Lock with Array of Waiting Nodes</h1>
+ * <h1>Ticket Lock with Array of Waiting Nodes</h1>
  * This is a variant of the Ticket Lock where each thread spins on its own node.
  *
  * <h2> Ends on Egress variant </h2>
@@ -75,12 +75,9 @@
  * <ul>
  * <li> egress is 10: T1 has the lock
  * <li> egress is 9: T1 will spin on egress waiting for it to become 10
- * <li> egress is 8: T1 will add its node to the waitersArray and check egress again:
- *   <ul>
- *   <li> egress is still 8: T1 will spin on lockIsMine and finally on egress
- *   <li> egress is now   9: T1 will spin on egress (egress may be about to pass to 10)
- *   <li> egress is now  10: T1 has the lock
- *   </ul>
+ * <li> egress is 8: T1 will add its node to the waitersArray, then T1 will
+ * spin on lockIsMine until it is set to true and after will spin on egress
+ * waiting for it to become 10
  * </ul>
  *
  * <h2> Atomic Operations </h2>
@@ -167,15 +164,18 @@ void ticket_awnee_mutex_lock(ticket_awnee_mutex_t * self)
     // If there is no slot to wait, spin until there is
     while (ticket-atomic_load(&self->egress) >= (self->maxArrayWaiters-1)) sched_yield();
 
-    // There is a spot for us on the array, so place our node there
-    awnee_node_t * wnode = &tlNode;
-    // Reset lockIsMine from previous usages
-    atomic_store_explicit(&wnode->lockIsMine, false, memory_order_relaxed);
-    atomic_store(&self->waitersArray[(int)(ticket % self->maxArrayWaiters)], wnode);
-
     if (atomic_load(&self->egress) < ticket-1) {
-        // Spin on lockIsMine
-        while (!atomic_load(&wnode->lockIsMine)) sched_yield();
+        // There is a spot for us on the array, so place our node there
+        awnee_node_t * wnode = &tlNode;
+        // Reset lockIsMine from previous usages
+        atomic_store_explicit(&wnode->lockIsMine, false, memory_order_relaxed);
+        atomic_store(&self->waitersArray[(int)(ticket % self->maxArrayWaiters)], wnode);
+        if (atomic_load(&self->egress) < ticket-1) {
+            // Spin on lockIsMine
+            while (!atomic_load(&wnode->lockIsMine)) sched_yield();
+        }
+        // Clear up our entry in the array
+        atomic_store_explicit(&self->waitersArray[(int)(ticket % self->maxArrayWaiters)], NULL, memory_order_relaxed);
     }
     // Spin on egress
     while (atomic_load(&self->egress) != ticket) {
@@ -193,8 +193,6 @@ void ticket_awnee_mutex_lock(ticket_awnee_mutex_t * self)
 void ticket_awnee_mutex_unlock(ticket_awnee_mutex_t * self)
 {
     long long ticket = atomic_load_explicit(&self->egress, memory_order_relaxed);
-    // Clear up our entry in the array before releasing the lock.
-    atomic_store_explicit(&self->waitersArray[(int)(ticket % self->maxArrayWaiters)], NULL, memory_order_relaxed);
     // We could do this load as relaxed per se but then the store on egress of -(ticket+1) could be re-ordered to be before, and we don't want that
     awnee_node_t * wnode = atomic_load(&self->waitersArray[(int)((ticket+1) % self->maxArrayWaiters)]);
     if (wnode != NULL) {

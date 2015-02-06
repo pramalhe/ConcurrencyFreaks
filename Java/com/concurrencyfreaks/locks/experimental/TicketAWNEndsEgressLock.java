@@ -71,12 +71,9 @@ import java.util.concurrent.locks.Lock;
  * <ul> 
  * <li> egress is 10: T1 has the lock
  * <li> egress is 9: T1 will spin on egress waiting for it to become 10
- * <li> egress is 8: T1 will add its node to the waitersArray and check egress again:
- *   <ul>
- *   <li> egress is still 8: T1 will spin on lockIsMine and finally on egress
- *   <li> egress is now   9: T1 will spin on egress (egress may be about to pass to 10)
- *   <li> egress is now  10: T1 has the lock
- *   </ul>
+ * <li> egress is 8: T1 will add its node to the waitersArray, then T1 will 
+ * spin on lockIsMine until it is set to true and after will spin on egress 
+ * waiting for it to become 10
  * </ul>
  * 
  * <h2> On Park() and Unpark() </h2>
@@ -144,16 +141,19 @@ public class TicketAWNEndsEgressLock implements Lock {
         while (egress >= ticket-1) { if (egress == ticket) return; Thread.yield(); }
         // If there is no slot to wait, spin until there is
         while (ticket-egress >= maxArrayWaiters) Thread.yield();
-
-        // There is a spot for us on the array, so place our node there
-        WaitingNode wnode = tlNode.get();
-        if (wnode == null) tlNode.set(wnode = new WaitingNode());
-        wnode.lockIsMine = false; // Reset from previous usages
-        waitersArray.set((int)(ticket % maxArrayWaiters), wnode);
-
+        
         if (egress < ticket-1) {
-            // Spin on lockIsMine
-            while (!wnode.lockIsMine) Thread.yield();
+            // There is a spot for us on the array, so place our node there
+            WaitingNode wnode = tlNode.get();
+            if (wnode == null) tlNode.set(wnode = new WaitingNode());
+            wnode.lockIsMine = false; // Reset from previous usages
+            waitersArray.set((int)(ticket % maxArrayWaiters), wnode);            
+            if (egress < ticket-1) {            
+                // Spin on lockIsMine
+                while (!wnode.lockIsMine) Thread.yield();
+            }
+            // Clear up our entry in the array since it's not needed anymore. Should be a relaxed store.
+            waitersArray.set((int)(ticket % maxArrayWaiters), null);
         }
         // Spin on egress
         while (egress != ticket) Thread.yield();
@@ -164,8 +164,6 @@ public class TicketAWNEndsEgressLock implements Lock {
     @Override
     public void unlock() {
         long ticket = egress;
-        // Clear up our entry in the array before releasing the lock. Should be a relaxed store.
-        waitersArray.set((int)(ticket % maxArrayWaiters), null);
         final WaitingNode wnode = waitersArray.get((int)((ticket+1) % maxArrayWaiters));
         if (wnode != null) {
             // We saw the node in waitersArray
