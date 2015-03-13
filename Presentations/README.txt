@@ -1,3 +1,8 @@
+DoubleInstanceLocking.pptx: A presentation on the "Double Instance Locking" primitive
+that uses two RW-Locks and one Mutex to provide Lock-Free read-only access with two 
+instances of the same resource.
+
+
 CLH-Mutex.pptx: Just a short presentation with animations on how the CLH mutual 
 exclusion lock works, to act as an introduction to the C11 implementation.
 
