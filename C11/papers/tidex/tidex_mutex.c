@@ -51,6 +51,10 @@
  *
  * This implementation has no spinning and no padding
  *
+ * TODO: try
+ *  #define Pause() __asm__ __volatile__ ( "pause" : : : )
+ * instead of sched_yield()
+ *
  * @author Pedro Ramalhete
  * @author Andreia Correia
  */

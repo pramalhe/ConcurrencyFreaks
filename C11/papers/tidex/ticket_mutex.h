@@ -37,8 +37,10 @@
 
 typedef struct
 {
-    _Atomic long ticket;
-    _Atomic long grant;
+    atomic_llong ticket;
+    char pad1[128-sizeof(atomic_llong)];
+    atomic_llong grant;
+    char pad2[128-sizeof(atomic_llong)];
 } ticket_mutex_t;
 
 

@@ -40,8 +40,11 @@
 typedef struct
 {
     atomic_llong ticket;
+    char pad1[128-sizeof(atomic_llong)];
     atomic_llong grant;
+    char pad2[128-sizeof(atomic_llong)];
     long long nextGrant;
+    char pad3[128-sizeof(atomic_llong)];
 } tidex_mutex_t;
 
 
