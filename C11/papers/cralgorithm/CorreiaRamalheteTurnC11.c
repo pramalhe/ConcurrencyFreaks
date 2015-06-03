@@ -1,7 +1,6 @@
 // Correia and Ramalhete CRTurn, Mutual Exclusion - Two linear wait software solutions
 // https://github.com/pramalhe/ConcurrencyFreaks/tree/master/papers/cralgorithm-2015.pdf
 //
-//
 // Shared words      = N+1
 // Number of states  = 3
 // Starvation-Free   = yes, with N
@@ -22,14 +21,14 @@ inline static int validate_left(int id, int lturn) {
     int i;
     if (lturn > id) {
         for (i = lturn; i < N; i++) {
-            if (atomic_load(&states[i*PADRATIO]) != UNLOCKED) return 0;
+            if (atomic_load_explicit(&states[i*PADRATIO], memory_order_acquire) != UNLOCKED) return 0;
         }
         for (i = 0; i < id; i++) {
-            if (atomic_load(&states[i*PADRATIO]) != UNLOCKED) return 0;
+            if (atomic_load_explicit(&states[i*PADRATIO], memory_order_acquire) != UNLOCKED) return 0;
         }
     } else {
         for (i = lturn; i < id; i++) {
-            if (atomic_load(&states[i*PADRATIO]) != UNLOCKED) return 0;
+            if (atomic_load_explicit(&states[i*PADRATIO], memory_order_acquire) != UNLOCKED) return 0;
         }
     }
     return 1;
@@ -39,14 +38,14 @@ inline static int validate_right(int id, int lturn) {
     int i;
     if (lturn <= id) {
         for (i = id + 1; i < N; i++) {
-            if (atomic_load(&states[i*PADRATIO]) == LOCKED) return 0;
+            if (atomic_load_explicit(&states[i*PADRATIO], memory_order_acquire) == LOCKED) return 0;
         }
         for (i = 0; i < lturn; i++) {
-            if (atomic_load(&states[i*PADRATIO]) == LOCKED) return 0;
+            if (atomic_load_explicit(&states[i*PADRATIO], memory_order_acquire) == LOCKED) return 0;
         }
     } else {
         for (i = id + 1; i < lturn; i++) {
-            if (atomic_load(&states[i*PADRATIO]) == LOCKED) return 0;
+            if (atomic_load_explicit(&states[i*PADRATIO], memory_order_acquire) == LOCKED) return 0;
         }
     }
     return 1;
@@ -68,23 +67,23 @@ static void *Worker( void *arg ) {
                 if (!validate_left(id, lturn)) {
                     atomic_store(&states[id*PADRATIO], WAITING);
                     while (1) {
-                        if (validate_left(id, lturn) && lturn == atomic_load(&turn)) break;
+                        if (validate_left(id, lturn) && lturn == atomic_load_explicit(&turn, memory_order_acquire)) break;
                         Pause();
-                        lturn = atomic_load(&turn);
+                        lturn = atomic_load_explicit(&turn, memory_order_acquire);
                     }
                     atomic_store(&states[id*PADRATIO], LOCKED);
                     continue;
                 }
-                while (lturn == atomic_load(&turn)) {
+                while (lturn == atomic_load_explicit(&turn, memory_order_acquire)) {
                     if (validate_right(id, lturn)) break;
                     Pause();
                 }
-                if (lturn == atomic_load(&turn)) break;
+                if (lturn == atomic_load_explicit(&turn, memory_order_acquire)) break;
             }
 			CriticalSection( id );						// critical section
 			int lturn = (atomic_load_explicit(&turn, memory_order_relaxed)+1) % N;
 			atomic_store_explicit(&turn, lturn, memory_order_relaxed);
-			atomic_store(&states[id*PADRATIO], UNLOCKED);					// exit protocol
+			atomic_store_explicit(&states[id*PADRATIO], UNLOCKED, memory_order_release); // exit protocol
 #ifdef FAST
 			id = startpoint( cnt );						// different starting point each experiment
 			cnt = cycleUp( cnt, NoStartPoints );

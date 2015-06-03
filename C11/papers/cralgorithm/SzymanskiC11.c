@@ -36,8 +36,9 @@ static void *Worker( void *arg ) {
 				await( atomic_load(&flag[j]) < 2 );
 			CriticalSection( id );
 			for ( j = id + 1; j < N; j += 1 )			// wait for all threads in waiting room
-				await( atomic_load(&flag[j]) < 2 || atomic_load(&flag[j]) > 3 );	//    to pass through door 2
-			atomic_store(&flag[id], 0);
+				await( atomic_load_explicit(&flag[j], memory_order_acquire) < 2 ||
+				       atomic_load_explicit(&flag[j], memory_order_acquire) > 3 );	//    to pass through door 2
+			atomic_store_explicit(&flag[id], 0, memory_order_release);
 #ifdef FAST
 			id = startpoint( cnt );						// different starting point each experiment
 			cnt = cycleUp( cnt, NoStartPoints );

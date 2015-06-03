@@ -1,31 +1,8 @@
 /*
- * Correia and Ramalhete 2-thread algorithm. This is a replacement to Peterson's 2-thread algorithm
- * Padded version
  *
- * This algorithm is similar to v2 but in this variant the we go from WAITING
- * into the critical section without having to go for LOCKED.
  *
  * WARNING: This only works for two threads !!!
- *
- * Table of actions:
- * -------------------------------------------------------
- * This thread | Other thread | Turn  | Action           |
- * ------------|--------------|-------|------------------|
- * LOCKED      | UNLOCKED     | this  | Enter CS         |
- * LOCKED      | WAITING      | this  | Enter CS         |
- * LOCKED      | LOCKED       | this  | Spin             |
- * LOCKED      | UNLOCKED     | other | Enter CS         |
- * LOCKED      | WAITING      | other | Move to WAITING  |
- * LOCKED      | LOCKED       | other | Move to WAITING  |
- * WAITING     | UNLOCKED     | this  | Enter CS         |
- * WAITING     | WAITING      | this  | Enter CS         |
- * WAITING     | LOCKED       | this  | Spin             |
- * WAITING     | UNLOCKED     | other | Move to LOCKED   |
- * WAITING     | WAITING      | other | Spin             |
- * WAITING     | LOCKED       | other | Spin             |
- * ------------------------------------------------------|
- *
- * Notice that a thread in WAITING without the turn, will never be in the CS.
+
  */
 
 enum Intent { DontWantIn, WantIn };
@@ -53,7 +30,7 @@ static void *Worker( void *arg ) {
 		    if ( id == 0 ) {
 	            atomic_store(intents[id], WantIn);                       // declare intent
 	            if ( atomic_load(intents[other]) == WantIn ) { // other thread want in ?
-	                if ( atomic_load(last) == id ) {                     // low priority task ?
+	                if ( atomic_load_explicit(last, memory_order_acquire) == id ) {                     // low priority task ?
 	                    atomic_store(intents[id], DontWantIn);           // retract intent
 	                    await( atomic_load(last) != id );                // low priority busy wait
 	                    atomic_store(intents[id], WantIn);               // re-declare intent
@@ -61,8 +38,8 @@ static void *Worker( void *arg ) {
 	                await( atomic_load(intents[other]) == DontWantIn );  // high priority busy wait
 	            } // if
 		        CriticalSection( id );                      // critical section
-	            atomic_store(last, id);                                  // exit protocol
-	            atomic_store(intents[id], DontWantIn);
+	            atomic_store_explicit(last, id, memory_order_release);                                  // exit protocol
+	            atomic_store_explicit(intents[id], DontWantIn, memory_order_release);
 		    }
 #ifdef FAST
 			id = startpoint( cnt );						// different starting point each experiment

@@ -22,7 +22,7 @@ static void *Worker( void *arg ) {
 	for ( int r = 0; r < RUNS; r += 1 ) {
 		entry = 0;
 		while ( atomic_load(&stop) == 0 ) {
-		  start: atomic_store(&b[id*PADRATIO], true);							// entry protocol
+		  start: atomic_store_explicit(&b[id*PADRATIO], true, memory_order_release); // entry protocol
 		    atomic_store(&x, id);
 			if ( FASTPATH( atomic_load(&y) != N ) ) {
 			    atomic_store(&b[id*PADRATIO], false);
@@ -34,14 +34,14 @@ static void *Worker( void *arg ) {
 			    atomic_store(&b[id*PADRATIO], false);
 				for ( int j = 0; j < N; j += 1 )
 					await( ! atomic_load(&b[j*PADRATIO]) );
-				if ( FASTPATH( atomic_load(&y) != id ) ) {
+				if ( FASTPATH( atomic_load_explicit(&y, memory_order_acquire) != id ) ) {
 //					await( y == N );
 					goto start;
 				} // if
 			} // if
 			CriticalSection( id );
-			atomic_store(&y, N);										// exit protocol
-			atomic_store(&b[id*PADRATIO], false);
+			atomic_store_explicit(&y, N, memory_order_release); // exit protocol
+			atomic_store_explicit(&b[id*PADRATIO], false, memory_order_release);
 #ifdef FAST
 			id = startpoint( cnt );						// different starting point each experiment
 			cnt = cycleUp( cnt, NoStartPoints );

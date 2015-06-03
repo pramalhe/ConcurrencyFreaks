@@ -27,9 +27,9 @@ static void *Worker( void *arg ) {
 			// step 2, wait for ticket to be selected
 			for ( int j = 0; j < N; j += 1 )			// check other tickets
 				while ( atomic_load(&ticket[j]) < max ||				// busy wait if choosing or
-						( atomic_load(&ticket[j]) == max && j < id ) ) Pause(); //  greater ticket value or lower priority
+						( atomic_load_explicit(&ticket[j], memory_order_acquire) == max && j < id ) ) Pause(); //  greater ticket value or lower priority
 			CriticalSection( id );
-			atomic_store(&ticket[id], MAX_TICKET);					// exit protocol
+			atomic_store_explicit(&ticket[id], MAX_TICKET, memory_order_release); // exit protocol
 #ifdef FAST
 			id = startpoint( cnt );						// different starting point each experiment
 			cnt = cycleUp( cnt, NoStartPoints );

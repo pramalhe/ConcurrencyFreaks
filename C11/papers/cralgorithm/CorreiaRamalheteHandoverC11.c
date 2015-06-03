@@ -19,19 +19,6 @@ static atomic_int *states CALIGN;              // shared
 static atomic_int *handover CALIGN;            // shared
 static atomic_int  hoEnabled CALIGN;           // shared
 
-inline static int validate_left(int id) {
-    for (int i = 0; i < id; i++) {
-        if (atomic_load(&states[i]) != UNLOCKED) return 0;
-    }
-    return 1;
-}
-
-inline static int validate_right(int id) {
-    for (int i = id + 1; i < N; i++) {
-        if (atomic_load(&states[i]) == LOCKED) return 0;
-    }
-    return 1;
-}
 
 static void *Worker( void *arg ) {
     TYPE id = (size_t)arg;
@@ -63,7 +50,7 @@ static void *Worker( void *arg ) {
                     atomic_store(&states[id*PADRATIO], WAITING);
                     while (!atomic_load(&hoEnabled)) {
                         for (i = 0; i < id; i++) {
-                            if (atomic_load(&states[i*PADRATIO]) != UNLOCKED) break;
+                            if (atomic_load_explicit(&states[i*PADRATIO], memory_order_acquire) != UNLOCKED) break;
                         }
                         if (i == id) break;
                         Pause();
@@ -72,32 +59,32 @@ static void *Worker( void *arg ) {
                 }
                 while (!atomic_load(&hoEnabled)) {
                     for (i = id + 1; i < N; i++) {
-                        if (atomic_load(&states[i*PADRATIO]) == LOCKED) break;
+                        if (atomic_load_explicit(&states[i*PADRATIO], memory_order_acquire) == LOCKED) break;
                     }
-                    if (i == N && !atomic_load(&hoEnabled)) goto LCS;
+                    if (i == N && !atomic_load_explicit(&hoEnabled, memory_order_acquire)) goto LCS;
                 }
                 atomic_store(&states[id*PADRATIO], WAITING);
             }
           LCS: CriticalSection( id );                      // critical section
             for (int i = id + 1; i < N; i++) {
-                if (atomic_load(&states[i*PADRATIO]) == WAITING) {
-                    if (!atomic_load_explicit(&hoEnabled, memory_order_relaxed)) atomic_store(&hoEnabled, 1);
-                    atomic_store(&handover[i*PADRATIO], MYTURN);
-                    atomic_store(&states[id*PADRATIO], UNLOCKED);
+                if (atomic_load_explicit(&states[i*PADRATIO], memory_order_acquire) == WAITING) {
+                    if (!atomic_load_explicit(&hoEnabled, memory_order_relaxed)) atomic_store_explicit(&hoEnabled, 1, memory_order_release);
+                    atomic_store_explicit(&handover[i*PADRATIO], MYTURN, memory_order_release);
+                    atomic_store_explicit(&states[id*PADRATIO], UNLOCKED, memory_order_release);
                     goto LEND;
                 }
             }
             for (int i = 0; i < id; i++) {
-                if (atomic_load(&states[i*PADRATIO]) == WAITING) {
-                    if (!atomic_load_explicit(&hoEnabled, memory_order_relaxed)) atomic_store(&hoEnabled, 1);
-                    atomic_store(&handover[i*PADRATIO], MYTURN);
-                    atomic_store(&states[id*PADRATIO], UNLOCKED);
+                if (atomic_load_explicit(&states[i*PADRATIO], memory_order_acquire) == WAITING) {
+                    if (!atomic_load_explicit(&hoEnabled, memory_order_relaxed)) atomic_store_explicit(&hoEnabled, 1, memory_order_release);
+                    atomic_store_explicit(&handover[i*PADRATIO], MYTURN, memory_order_release);
+                    atomic_store_explicit(&states[id*PADRATIO], UNLOCKED, memory_order_release);
                     goto LEND;
                 }
             }
             // There are no successors at all
-            if (atomic_load_explicit(&hoEnabled, memory_order_relaxed)) atomic_store(&hoEnabled, 0);
-            atomic_store(&states[id*PADRATIO], UNLOCKED);
+            if (atomic_load_explicit(&hoEnabled, memory_order_relaxed)) atomic_store_explicit(&hoEnabled, 0, memory_order_release);
+            atomic_store_explicit(&states[id*PADRATIO], UNLOCKED, memory_order_release);
           LEND:
 #ifdef FAST
             id = startpoint( cnt );                     // different starting point each experiment

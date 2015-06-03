@@ -7,7 +7,7 @@
 
 enum Intent { DontWantIn, WantIn };
 
-// TODO: add padding
+
 static atomic_int *intents CALIGN;					// shared
 
 static void *Worker( void *arg ) {
@@ -29,7 +29,7 @@ static void *Worker( void *arg ) {
 		  L1: for ( int j = id + 1; j < N; j += 1 )
 				if ( atomic_load(&intents[j*PADRATIO]) == WantIn ) { Pause(); goto L1; }
 			CriticalSection( id );						// critical section
-			atomic_store(&intents[id*PADRATIO], DontWantIn);					// exit protocol
+			atomic_store_explicit(&intents[id*PADRATIO], DontWantIn, memory_order_release);	// exit protocol
 #ifdef FAST
 			id = startpoint( cnt );						// different starting point each experiment
 			cnt = cycleUp( cnt, NoStartPoints );

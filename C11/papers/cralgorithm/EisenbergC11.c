@@ -18,19 +18,19 @@ static void *Worker( void *arg ) {
 		  L0: atomic_store(&control[id], WantIn);						// entry protocol
 			// step 1, wait for threads with higher priority
 		  L1: for ( int j = atomic_load(&HIGH); j != id; j = cycleUp( j, N ) )
-				if ( atomic_load(&control[j]) != DontWantIn ) { Pause(); goto L1; } // restart search
+				if ( atomic_load_explicit(&control[j], memory_order_acquire) != DontWantIn ) { Pause(); goto L1; } // restart search
 		    atomic_store(&control[id], EnterCS);
 			// step 2, check for any other thread finished step 1
 			for ( int j = 0; j < N; j += 1 )
 				if ( j != id && atomic_load(&control[j]) == EnterCS ) goto L0;
-			if ( atomic_load(&control[HIGH]) != DontWantIn && atomic_load(&HIGH) != id ) goto L0;
-			atomic_store(&HIGH, id);									// its now ok to enter
+			if ( atomic_load(&control[HIGH]) != DontWantIn && atomic_load_explicit(&HIGH, memory_order_acquire) != id ) goto L0;
+			atomic_store_explicit(&HIGH, id, memory_order_release);									// its now ok to enter
 			CriticalSection( id );
 			// look for any thread that wants in other than this thread
 //			for ( int j = cycleUp( id + 1, N );; j = cycleUp( j, N ) ) // exit protocol
-			for ( int j = cycleUp( atomic_load(&HIGH) + 1, N );; j = cycleUp( j, N ) ) // exit protocol
-				if ( atomic_load(&control[j]) != DontWantIn ) { atomic_store(&HIGH, j); break; }
-			atomic_store(&control[id], DontWantIn);
+			for ( int j = cycleUp( atomic_load_explicit(&HIGH, memory_order_relaxed) + 1, N );; j = cycleUp( j, N ) ) // exit protocol
+				if ( atomic_load(&control[j]) != DontWantIn ) { atomic_store_explicit(&HIGH, j, memory_order_release); break; }
+			atomic_store_explicit(&control[id], DontWantIn, memory_order_release);
 #ifdef FAST
 			id = startpoint( cnt );						// different starting point each experiment
 			cnt = cycleUp( cnt, NoStartPoints );

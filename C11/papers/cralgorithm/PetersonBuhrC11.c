@@ -25,14 +25,14 @@ static inline void binary_prologue( int id, TokenC11 *t ) {
     int other = inv( id );
     atomic_int *q[2] = { &t->qarray[0], &t->qarray[PADRATIO] };
     atomic_int *turn = &t->qarray[2*PADRATIO];
-    atomic_store(q[id], WantIn);
+    atomic_store_explicit(q[id], WantIn, memory_order_release);
     atomic_store(turn, id);                                 // RACE
-    while ( atomic_load(q[other]) != DontWantIn && atomic_load(turn) == id ) Pause(); // busy wait
+    while ( atomic_load(q[other]) != DontWantIn && atomic_load_explicit(turn, memory_order_acquire) == id ) Pause(); // busy wait
 } // binary_prologue
 
 static inline void binary_epilogue( int id, TokenC11 *t ) {
     atomic_int *q[2] = { &t->qarray[0], &t->qarray[PADRATIO] };
-    atomic_store(q[id], DontWantIn);                  // exit protocol
+    atomic_store_explicit(q[id], DontWantIn, memory_order_release);                  // exit protocol
 } // binary_epilogue
 
 

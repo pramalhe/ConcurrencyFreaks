@@ -20,17 +20,17 @@ static void *Worker( void *arg ) {
 				if ( max < v ) max = v;
 			} // for
 			max += 1;									// advance ticket
-			atomic_store(&ticket[id], max);
+			atomic_store_explicit(&ticket[id], max, memory_order_release);
 			atomic_store(&choosing[id], 0);
 			// step 2, wait for ticket to be selected
 			for ( int j = 0; j < N; j += 1 ) {			// check other tickets
 				while ( atomic_load(&choosing[j]) == 1 ) Pause();		// busy wait if thread selecting ticket
-				while ( atomic_load(&ticket[j]) != 0 &&				// busy wait if choosing or
-						( atomic_load(&ticket[j]) < max ||			//  greater ticket value or lower priority
-						( atomic_load(&ticket[j]) == max && j < id ) ) ) Pause();
+				while ( atomic_load_explicit(&ticket[j], memory_order_acquire) != 0 &&				// busy wait if choosing or
+						( atomic_load_explicit(&ticket[j], memory_order_acquire) < max ||			//  greater ticket value or lower priority
+						( atomic_load_explicit(&ticket[j], memory_order_acquire) == max && j < id ) ) ) Pause();
 			} // for
 			CriticalSection( id );
-			atomic_store(&ticket[id], 0);								// exit protocol
+			atomic_store_explicit(&ticket[id], 0, memory_order_release); // exit protocol
 #ifdef FAST
 			id = startpoint( cnt );						// different starting point each experiment
 			cnt = cycleUp( cnt, NoStartPoints );
