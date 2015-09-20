@@ -38,19 +38,21 @@ public:
     bool exclusiveUnlock(void);
 
 private:
-    int thread_2_tid(void);
+    int thread2idx(void);
 
 private:
+    /* Hash Function for thread id to integer */
+    std::hash<std::thread::id> hashFunc;
     /* Number of cores on the system */
-    int          num_cores;
+    int          numCores;
     /* Length of readers_counters[] */
-    int          counters_length;
+    int          countersLength;
     /* Distributed Counters for Readers */
-    std::atomic<int>  *readers_counters;
+    std::atomic<int>  *readersCounters;
     /* Padding */
     char               pad1[DCLC_CACHE_PADD];
     /* lock/unlocked in write-mode */
-    std::atomic<int>   writers_mutex;
+    std::atomic<int>   writersMutex;
 };
 
 

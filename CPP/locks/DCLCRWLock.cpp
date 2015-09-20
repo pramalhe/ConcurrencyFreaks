@@ -32,14 +32,6 @@
 #include <atomic>
 #include "DCLCRWLock.h"
 
-using namespace std;
-
-/*
- * If you're using gcc 4.7 you might need this during compilation
- * _GLIBCXX_USE_NANOSLEEP to have std::this_thread::yield()
- */
-
-
 
 /**
  * Default constructor
@@ -50,12 +42,12 @@ DCLCRWLock::DCLCRWLock ()
     int hw_cores = std::thread::hardware_concurrency();
     // Default number of cores assumes this machine has 8 cores
     if (hw_cores == 0) hw_cores = DCLC_NUMBER_OF_CORES;
-    num_cores = hw_cores;
-    counters_length = num_cores*DCLC_COUNTERS_RATIO;
-    writers_mutex.store(DCLC_RWL_UNLOCKED);
-    readers_counters = new atomic<int>[counters_length];
-    for (int tid = 0; tid < counters_length; tid += DCLC_COUNTERS_RATIO) {
-        readers_counters[tid] = 0;
+    numCores = hw_cores;
+    countersLength = numCores*DCLC_COUNTERS_RATIO;
+    writersMutex.store(DCLC_RWL_UNLOCKED);
+    readersCounters = new std::atomic<int>[countersLength];
+    for (int idx = 0; idx < countersLength; idx += DCLC_COUNTERS_RATIO) {
+        readersCounters[idx] = 0;
     }
 }
 
@@ -65,12 +57,12 @@ DCLCRWLock::DCLCRWLock ()
  */
 DCLCRWLock::DCLCRWLock (int num_cores)
 {
-    this->num_cores = num_cores;
-    counters_length = num_cores*DCLC_COUNTERS_RATIO;
-    writers_mutex.store(DCLC_RWL_UNLOCKED);
-    readers_counters = new atomic<int>[counters_length];
-    for (int tid = 0; tid < counters_length; tid += DCLC_COUNTERS_RATIO) {
-        readers_counters[tid] = 0;
+    this->numCores = num_cores;
+    countersLength = num_cores*DCLC_COUNTERS_RATIO;
+    writersMutex.store(DCLC_RWL_UNLOCKED);
+    readersCounters = new std::atomic<int>[countersLength];
+    for (int idx = 0; idx < countersLength; idx += DCLC_COUNTERS_RATIO) {
+        readersCounters[idx] = 0;
     }
 }
 
@@ -80,8 +72,8 @@ DCLCRWLock::DCLCRWLock (int num_cores)
  */
 DCLCRWLock::~DCLCRWLock ()
 {
-    delete[] readers_counters;
-    writers_mutex.store(DCLC_RWL_UNLOCKED);
+    delete[] readersCounters;
+    writersMutex.store(DCLC_RWL_UNLOCKED);
 }
 
 
@@ -90,13 +82,9 @@ DCLCRWLock::~DCLCRWLock ()
  *
  * Returns a random index to be used in readers_counters[]
  */
-int DCLCRWLock::thread_2_tid (void) {
-    std::hash<std::thread::id> hashFunc;
+int DCLCRWLock::thread2idx (void) {
     std::size_t tid = hashFunc(std::this_thread::get_id());
-    tid ^= (tid << 21);
-    tid ^= (tid >> 35);
-    tid ^= (tid << 4);
-    return (int)((tid % num_cores)*DCLC_COUNTERS_RATIO);
+    return (int)((tid % numCores)*DCLC_COUNTERS_RATIO);
 }
 
 
@@ -105,17 +93,17 @@ int DCLCRWLock::thread_2_tid (void) {
  */
 void DCLCRWLock::sharedLock (void)
 {
-    const int tid = thread_2_tid();
-    while (1) {
-        readers_counters[tid].fetch_add(1);
-        if (writers_mutex.load() == DCLC_RWL_UNLOCKED) {
+    const int idx = thread2idx();
+    while (true) {
+        readersCounters[idx].fetch_add(1);
+        if (writersMutex.load() == DCLC_RWL_UNLOCKED) {
             // Acquired lock in read-only mode
             return;
         } else {
             // A Writer has acquired the lock, must reset to 0 and wait
-            readers_counters[tid].fetch_add(-1);
-            while (writers_mutex.load() == DCLC_RWL_LOCKED) {
-                this_thread::yield();
+            readersCounters[idx].fetch_add(-1);
+            while (writersMutex.load() == DCLC_RWL_LOCKED) {
+                std::this_thread::yield();
             }
         }
     }
@@ -128,10 +116,9 @@ void DCLCRWLock::sharedLock (void)
  */
 bool DCLCRWLock::sharedUnlock (void)
 {
-    const int tid = thread_2_tid();
-    if (readers_counters[tid].fetch_add(-1) <= 0) {
+    if (readersCounters[thread2idx()].fetch_add(-1) <= 0) {
         // ERROR: no matching lock() for this unlock()
-        cout << "ERROR: no matching lock() for this unlock()\n";
+        std::cout << "ERROR: no matching lock() for this unlock()\n";
         return false;
     } else {
         return true;
@@ -146,14 +133,14 @@ void DCLCRWLock::exclusiveLock (void)
 {
     int old = DCLC_RWL_UNLOCKED;
     // Try to acquire the write-lock
-    while (!writers_mutex.compare_exchange_strong(old, DCLC_RWL_LOCKED)) {
-        this_thread::yield();
+    while (!writersMutex.compare_exchange_strong(old, DCLC_RWL_LOCKED)) {
+        std::this_thread::yield();
         old = DCLC_RWL_UNLOCKED;
     }
     // Write-lock was acquired, now wait for any running Readers to finish
-    for (int tid = 0; tid < counters_length; tid += DCLC_COUNTERS_RATIO) {
-        while (readers_counters[tid].load() > 0) {
-            this_thread::yield();
+    for (int idx = 0; idx < countersLength; idx += DCLC_COUNTERS_RATIO) {
+        while (readersCounters[idx].load() > 0) {
+            std::this_thread::yield();
         }
     }
 }
@@ -164,26 +151,26 @@ void DCLCRWLock::exclusiveLock (void)
  */
 bool DCLCRWLock::exclusiveUnlock (void)
 {
-	if (writers_mutex.load(std::memory_order_relaxed) != DCLC_RWL_LOCKED) {
+	if (writersMutex.load(std::memory_order_relaxed) != DCLC_RWL_LOCKED) {
         // ERROR: Tried to unlock an non-locked write-lock
-        cout << "********* ERROR: Tried to unlock an non-locked write-lock\n";
+        std::cout << "********* ERROR: Tried to unlock an non-locked write-lock\n";
         return false;
     }
-    writers_mutex.store(DCLC_RWL_UNLOCKED);
+    writersMutex.store(DCLC_RWL_UNLOCKED);
     return true;
 }
 
 
 bool DCLCRWLock::trySharedLock (void)
 {
-    const int tid = thread_2_tid();
-    readers_counters[tid].fetch_add(1);
-    if (writers_mutex.load() == DCLC_RWL_UNLOCKED) {
+    const int tid = thread2idx();
+    readersCounters[tid].fetch_add(1);
+    if (writersMutex.load() == DCLC_RWL_UNLOCKED) {
         // Acquired lock in read-only mode
         return true;
     } else {
         // A Writer has acquired the lock, must reset to 0 and wait
-        readers_counters[tid].fetch_add(-1);
+        readersCounters[tid].fetch_add(-1);
         return false;
     }
 }
