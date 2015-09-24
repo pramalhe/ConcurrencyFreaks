@@ -30,7 +30,6 @@ PerformanceBenchmarkURCU::PerformanceBenchmarkURCU(int numThreads, int numMilis,
 
 PerformanceBenchmarkURCU::~PerformanceBenchmarkURCU() {
     delete[] _workerThread;
-    // TODO: empty all the lists
 }
 
 
