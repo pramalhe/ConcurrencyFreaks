@@ -92,9 +92,7 @@ public:
 
 
     template<typename R, typename A>
-    //template<typename R, typename A, class F=R(A)>
     R applyRead(A& arg1, std::function<R(T*,A)>& readOnlyFunc) {
-    //R applyRead(A& arg1, F readOnlyFunc) {
         const int lvi = _lrc.arrive();
         T* inst = _leftRight.load() == READS_LEFT ? _leftInst : _rightInst;
         R ret = readOnlyFunc(inst, arg1);
