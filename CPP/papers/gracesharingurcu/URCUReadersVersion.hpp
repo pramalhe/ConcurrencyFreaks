@@ -46,7 +46,7 @@ class URCUReadersVersion {
     std::atomic<uint64_t>* readersVersion alignas(128);
 
 public:
-    URCUReadersVersion(const int maxThreads) : maxThreads{maxThreads} {
+    URCUReadersVersion(const int maxThreads = 32) : maxThreads{maxThreads} {
         readersVersion = new std::atomic<uint64_t>[maxThreads*CLPAD];
         for (int i=0; i < maxThreads; i++) {
             readersVersion[i*CLPAD].store(UNASSIGNED, std::memory_order_relaxed);
