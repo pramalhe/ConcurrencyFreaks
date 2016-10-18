@@ -1,4 +1,4 @@
-all: stress
+all: bench
 
 MYDEPS = \
 	include/HazardPointers.hpp \
