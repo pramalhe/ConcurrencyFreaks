@@ -4,13 +4,11 @@ MYDEPS = \
 	include/HazardPointers.hpp \
 	include/CRTurnQueue.hpp \
 	include/MichaelScottQueue.hpp \
-	
-	
 
 
 	
 # For debugging generated code use: -S -fverbose-asm 
-bench: $(MYDEPS) include/BenchmarkQ.hpp src/benchmark.cpp simqueue.o
+bench: $(MYDEPS) include/BenchmarkQ.hpp src/benchmark.cpp
 	g++-5 -std=c++14 -Wall -g -O3 src/benchmark.cpp -I./include -o bench -lpthread
 
 # This target builds with address sanitizer (and leak checker)
