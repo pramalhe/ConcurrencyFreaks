@@ -37,19 +37,26 @@
 /**
  * <h1> CR Turn Queue </h1>
  *
+ * A concurrent wait-free queue that is Multi-Producer-Multi-Consumer and does
+ * its own wait-free memory reclamation.
+ * Based on the paper "A Wait-Free Queue with Wait-Free Memory Reclamation"
+ * https://github.com/pramalhe/ConcurrencyFreaks/tree/master/papers/crturnqueue-2016.pdf
  *
- * enqueue algorithm: CR Turn enqueue
- * dequeue algorithm: CR Turn dequeue
+ * <p>
+ * Enqueue algorithm: CR Turn enqueue
+ * Dequeue algorithm: CR Turn dequeue
  * Consistency: Linearizable
  * enqueue() progress: wait-free bounded O(N_threads)
  * dequeue() progress: wait-free bounded O(N_threads)
- * Memory Reclamation: Hazard Pointers
+ * Memory Reclamation: Hazard Pointers (wait-free)
  *
  * <p>
  * The paper on Hazard Pointers is named "Hazard Pointers: Safe Memory
  * Reclamation for Lock-Free objects" and it is available here:
  * http://web.cecs.pdx.edu/~walpole/class/cs510/papers/11.pdf
  *
+ * @author Andreia Correia
+ * @author Pedro Ramalhete
  */
 template<typename T>
 class CRTurnQueue {
@@ -69,8 +76,8 @@ private:
 
         bool casDeqTid(int cmp, int val) {
             int tmp = cmp;
-    		return deqTid.compare_exchange_strong(tmp, val);
-    	}
+     	    return deqTid.compare_exchange_strong(tmp, val);
+        }
     };
 
     static const int IDX_NONE = -1;
@@ -105,7 +112,7 @@ private:
     int searchNext(Node* lhead, Node* lnext) {
         const int turn = lhead->deqTid.load();
         for (int idx=turn+1; idx < turn+maxThreads+1; idx++) {
-        	const int idDeq = idx%maxThreads;
+            const int idDeq = idx%maxThreads;
             if (deqself[idDeq].load() != deqhelp[idDeq].load()) continue;
             if (lnext->deqTid.load() == IDX_NONE) lnext->casDeqTid(IDX_NONE, idDeq);
             break;
@@ -186,10 +193,10 @@ public:
         Node* myNode = new Node(item,tid);
         enqueuers[tid].store(myNode);
         for (int i = 0; i < maxThreads; i++) {
-        	if (enqueuers[tid].load() == nullptr) {
-				hp.clear(tid);
-				return; // Some thread did all the steps
-			}
+            if (enqueuers[tid].load() == nullptr) {
+ 			    hp.clear(tid);
+ 			    return; // Some thread did all the steps
+ 		    }
             Node* ltail = hp.protectPtr(kHpTail, tail.load(), tid);
             if (ltail != tail.load()) continue; // If the tail advanced maxThreads times, then my node has been enqueued
             if (enqueuers[ltail->enqTid].load() == ltail) {  // Help a thread do step 4
@@ -204,10 +211,10 @@ public:
                 break;
             }
             Node* lnext = ltail->next.load();
-    		if (lnext != nullptr) tail.compare_exchange_strong(ltail, lnext); // Help a thread do step 3:
+     	    if (lnext != nullptr) tail.compare_exchange_strong(ltail, lnext); // Help a thread do step 3:
         }
-    	enqueuers[tid].store(nullptr, std::memory_order_release); // Do step 4, just in case it's not done
-    	hp.clear(tid);
+        enqueuers[tid].store(nullptr, std::memory_order_release); // Do step 4, just in case it's not done
+        hp.clear(tid);
     }
 
 
@@ -226,7 +233,7 @@ public:
         Node* myReq = deqhelp[tid].load();
         deqself[tid].store(myReq);             // Step 1
         for (int i=0; i < maxThreads; i++) {
-        	if (deqhelp[tid].load() != myReq) break; // No need for HP
+            if (deqhelp[tid].load() != myReq) break; // No need for HP
             Node* lhead = hp.protectPtr(kHpHead, head.load(), tid);
             if (lhead != head.load()) continue;
             if (lhead == tail.load()) {          // Give up
@@ -241,7 +248,7 @@ public:
             }
             Node* lnext = hp.protectPtr(kHpNext, lhead->next.load(), tid);
             if (lhead != head.load()) continue;
-			if (searchNext(lhead, lnext) != IDX_NONE) casDeqAndHead(lhead, lnext, tid);
+ 		    if (searchNext(lhead, lnext) != IDX_NONE) casDeqAndHead(lhead, lnext, tid);
         }
         Node* myNode = deqhelp[tid].load();
         Node* lhead = hp.protectPtr(kHpHead, head.load(), tid);     // Do step 4 if needed
