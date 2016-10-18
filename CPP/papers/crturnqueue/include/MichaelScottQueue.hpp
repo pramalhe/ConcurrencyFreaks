@@ -42,7 +42,7 @@
  * Consistency: Linearizable
  * enqueue() progress: lock-free
  * dequeue() progress: lock-free
- * Memory Reclamation: Hazard Pointers
+ * Memory Reclamation: Hazard Pointers (lock-free)
  *
  *
  * Maged Michael and Michael Scott's Queue with Hazard Pointers
@@ -104,8 +104,8 @@ private:
 public:
     MichaelScottQueue(int maxThreads=MAX_THREADS) : maxThreads{maxThreads} {
         Node* sentinelNode = new Node(nullptr);
-        head.store(sentinelNode);
-        tail.store(sentinelNode);
+        head.store(sentinelNode, std::memory_order_relaxed);
+        tail.store(sentinelNode, std::memory_order_relaxed);
     }
 
 

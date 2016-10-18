@@ -144,7 +144,7 @@ private:
     /**
      * Called only from dequeue()
      *
-     * ...
+     * Giveup procedure, for when there are no nodes left to dequeue
      */
     void giveUp(Node* myReq, const int tid) {
         Node* lhead = head.load();
@@ -194,9 +194,9 @@ public:
         enqueuers[tid].store(myNode);
         for (int i = 0; i < maxThreads; i++) {
             if (enqueuers[tid].load() == nullptr) {
- 			    hp.clear(tid);
- 			    return; // Some thread did all the steps
- 		    }
+                hp.clear(tid);
+                return; // Some thread did all the steps
+            }
             Node* ltail = hp.protectPtr(kHpTail, tail.load(), tid);
             if (ltail != tail.load()) continue; // If the tail advanced maxThreads times, then my node has been enqueued
             if (enqueuers[ltail->enqTid].load() == ltail) {  // Help a thread do step 4

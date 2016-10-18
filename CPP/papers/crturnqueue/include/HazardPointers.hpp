@@ -139,7 +139,6 @@ public:
                         break;
                     }
                 }
-
             }
             if (canDelete) {
                 retiredList[tid*CLPAD].erase(retiredList[tid*CLPAD].begin() + iret);
