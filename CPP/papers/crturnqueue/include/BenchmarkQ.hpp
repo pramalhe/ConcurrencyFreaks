@@ -358,7 +358,7 @@ public:
             BenchmarkQ bench(nThreads);
             std::cout << "\n----- Enq-Deq Benchmark   numThreads=" << nThreads << "   numPairs=" << numPairs/1000000LL << "M -----\n";
             bench.enqDeqBenchmark<MichaelScottQueue<UserData>>(numPairs, numRuns);
-            bench.enqDeqBenchmark<KoganPetrankQueueCHP<UserData>>(numPairs, numRuns);
+            //bench.enqDeqBenchmark<KoganPetrankQueueCHP<UserData>>(numPairs, numRuns);
             bench.enqDeqBenchmark<CRTurnQueue<UserData>>(numPairs, numRuns);
         }
 
@@ -369,7 +369,7 @@ public:
             BenchmarkQ bench(nThreads);
             std::cout << "\n----- Burst Benchmark   numThreads=" << nThreads << "   burstSize=" << burstSize/1000LL << "K   numIters=" << numIters << " -----\n";
             bench.burstBenchmark<MichaelScottQueue<UserData>>(burstSize, numIters, numRuns);
-            bench.burstBenchmark<KoganPetrankQueueCHP<UserData>>(burstSize, numIters, numRuns);
+            //bench.burstBenchmark<KoganPetrankQueueCHP<UserData>>(burstSize, numIters, numRuns);
             bench.burstBenchmark<CRTurnQueue<UserData>>(burstSize, numIters, numRuns);
         }
     }
