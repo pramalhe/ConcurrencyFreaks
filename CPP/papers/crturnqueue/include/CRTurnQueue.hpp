@@ -68,15 +68,10 @@ private:
         std::atomic<int> deqTid;
         std::atomic<Node*> next;
 
-        Node(T* userItem, int tid) : enqTid{tid} {
-            this->item = userItem;
-            this->deqTid.store(IDX_NONE, std::memory_order_relaxed);
-            this->next.store(nullptr, std::memory_order_relaxed);
-        }
+        Node(T* item, int tid) : item{item}, enqTid{tid}, deqTid{IDX_NONE}, next{nullptr} { }
 
         bool casDeqTid(int cmp, int val) {
-            int tmp = cmp;
-     	    return deqTid.compare_exchange_strong(tmp, val);
+     	    return deqTid.compare_exchange_strong(cmp, val);
         }
     };
 
@@ -211,7 +206,7 @@ public:
                 break;
             }
             Node* lnext = ltail->next.load();
-     	    if (lnext != nullptr) tail.compare_exchange_strong(ltail, lnext); // Help a thread do step 3:
+     	    if (lnext != nullptr) tail.compare_exchange_strong(ltail, lnext); // Help a thread do step 3
         }
         enqueuers[tid].store(nullptr, std::memory_order_release); // Do step 4, just in case it's not done
         hp.clear(tid);
@@ -220,9 +215,9 @@ public:
 
     /**
      * Steps when uncontended:
-     * 1. Publish request to dequeue in dequeuers[myidx];
-     * 2. CAS node->deqTid from IDX_START to myidx;
-     * 3. Set dequeuers[myidx] to the newly owned node;
+     * 1. Publish request to dequeue in dequeuers[tid];
+     * 2. CAS node->deqTid from IDX_START to tid;
+     * 3. Set dequeuers[tid] to the newly owned node;
      * 4. Advance the head with casHead();
      *
      * We must protect either head or tail with HP before doing the check for
@@ -236,7 +231,7 @@ public:
             if (deqhelp[tid].load() != myReq) break; // No need for HP
             Node* lhead = hp.protectPtr(kHpHead, head.load(), tid);
             if (lhead != head.load()) continue;
-            if (lhead == tail.load()) {          // Give up
+            if (lhead == tail.load()) {        // Give up
                 deqself[tid].store(prReq);     // Rollback request to dequeue
                 giveUp(myReq, tid);
                 if (deqhelp[tid].load() != myReq) {

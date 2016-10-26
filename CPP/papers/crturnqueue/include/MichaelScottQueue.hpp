@@ -63,29 +63,21 @@ class MichaelScottQueue {
 private:
     struct Node {
         T* item;
-        std::atomic<Node*> next = { nullptr } ;
+        std::atomic<Node*> next;
 
-        Node(T* userItem) {
-            this->item = userItem;
-        }
+        Node(T* userItem) : item{userItem}, next{nullptr} { }
 
         bool casNext(Node *cmp, Node *val) {
-            // Use a tmp variable because this CAS "replaces" the value of the first argument
-            Node *tmp = cmp;
-            return next.compare_exchange_strong(tmp, val);
+            return next.compare_exchange_strong(cmp, val);
         }
     };
 
     bool casTail(Node *cmp, Node *val) {
-		// Use a tmp variable because this CAS "replaces" the value of the first argument
-		Node *tmp = cmp;
-		return tail.compare_exchange_strong(tmp, val);
+		return tail.compare_exchange_strong(cmp, val);
 	}
 
     bool casHead(Node *cmp, Node *val) {
-        // Use a tmp variable because this CAS "replaces" the value of the first argument
-        Node* tmp = cmp;
-        return head.compare_exchange_strong(tmp, val);
+        return head.compare_exchange_strong(cmp, val);
     }
 
     // Pointers to head and tail of the list
