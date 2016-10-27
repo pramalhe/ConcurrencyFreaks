@@ -183,6 +183,7 @@ public:
      * 3. Advance tail to tail.next
      * 4. Remove node from enqueuers[]
      *
+     * @param tid The tid must be a UNIQUE index for each thread, in the range 0 to maxThreads-1
      */
     void enqueue(T* item, const int tid) {
         if (item == nullptr) throw std::invalid_argument("item can not be nullptr");
@@ -224,6 +225,7 @@ public:
      * We must protect either head or tail with HP before doing the check for
      * empty queue, otherwise we may get into retired-deleted-newed-reenqueued.
      *
+     * @param tid: The tid must be a UNIQUE index for each thread, in the range 0 to maxThreads-1
      */
     T* dequeue(const int tid) {
         Node* prReq = deqself[tid].load();     // Previous request
