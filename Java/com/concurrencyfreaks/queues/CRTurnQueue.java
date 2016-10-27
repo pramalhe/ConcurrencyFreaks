@@ -108,7 +108,7 @@ public class CRTurnQueue<E> implements IQueue<E> {
     
     public CRTurnQueue(int maxThreads) {
         this.maxThreads = maxThreads;
-        Node<E> sentinelNode = new Node<E>(null, getIndex());
+        Node<E> sentinelNode = new Node<E>(null, 0);
         head = sentinelNode;
         tail = sentinelNode;
         enqueuers = new AtomicReferenceArray<Node<E>>(maxThreads);
@@ -125,6 +125,10 @@ public class CRTurnQueue<E> implements IQueue<E> {
         return (int)(Thread.currentThread().getId() % maxThreads);
     }
     
+    // Use this API only if you're using sequential thread ids
+    public void enqueue(E item) {
+        enqueue(item, getIndex());
+    }
     
     /**
      * The single-producer order is like this:
@@ -135,18 +139,18 @@ public class CRTurnQueue<E> implements IQueue<E> {
      *  
      * Progress Condition: Wait-Free Bounded by the number of threads calling enqueue()
      * @param item must not be null
+     * @param tid must be a UNIQUE thread id in the range 0 to maxThreads-1
      */
-    public void enqueue(E item) {
+    public void enqueue(E item, final int tid) {
         if (item == null) throw new NullPointerException();
-        final int myidx = getIndex();
-        final Node<E> myNode = new Node<E>(item, myidx);
-        enqueuers.set(myidx, myNode);                    // Do step 1: add node to enqueuers[]
+        final Node<E> myNode = new Node<E>(item, tid);
+        enqueuers.set(tid, myNode);                    // Do step 1: add node to enqueuers[]
         for (int i = 0; i < maxThreads; i++) {
             Node<E> ltail = tail;
             if (enqueuers.get(ltail.enqTid) == ltail) {  // Help a thread do step 4
                 enqueuers.compareAndSet(ltail.enqTid, ltail, null);
             }
-            if (enqueuers.get(myidx) == null) return;    // Some thread helped me and did all the work, yupiii! (INV3)
+            if (enqueuers.get(tid) == null) return;    // Some thread helped me and did all the work, yupiii! (INV3)
             for (int j = 1; j < maxThreads+1; j++) {     // Help a thread do step 2
                 Node<E> nodeToHelp = enqueuers.get((j + ltail.enqTid) % maxThreads);
                 if (nodeToHelp == null) continue;
@@ -156,7 +160,7 @@ public class CRTurnQueue<E> implements IQueue<E> {
             Node<E> lnext = ltail.next;                  // Help a thread do step 3
             if (lnext != null) casTail(ltail, lnext);
         }
-        enqueuers.lazySet(myidx, null);                  // Do step 4, just in case it's not done 
+        enqueuers.lazySet(tid, null);                  // Do step 4, just in case it's not done 
     }
     
     
@@ -192,19 +196,24 @@ public class CRTurnQueue<E> implements IQueue<E> {
     }
     
     
-    private void giveUp(Node<E> req, int myidx) {
+    private void giveUp(Node<E> req, int tid) {
         Node<E> lhead = head;
-        if (deqhelp.get(myidx) != req) return;
+        if (deqhelp.get(tid) != req) return;
         if (lhead == tail) return;        
         Node<E> lnext = lhead.next;
         if (lhead != head) return;
         // make sure Node next is assign to a request for dequeue
         if (searchNext(lhead, lnext) == IDX_NONE) {
-            lnext.casDeqTid(IDX_NONE, myidx);
+            lnext.casDeqTid(IDX_NONE, tid);
         }
-        casDeqAndCasHead(lhead, lnext, myidx);
+        casDeqAndCasHead(lhead, lnext, tid);
     }
 
+    
+    // Use this API only if you're using sequential thread ids
+    public E dequeue() {
+        return dequeue(getIndex());
+    }
     
     /**
      * The single consumer order is:
@@ -213,29 +222,30 @@ public class CRTurnQueue<E> implements IQueue<E> {
      * 3. Assign node with ownership to dequeurs[myidx] using a CAS(request,node)
      * 4. Advance head
      * 5. Unpublish by doing a CAS on dequeuers[myidx], CAS(node,null) 
+     * 
+     * @param tid must be a UNIQUE thread id in the range 0 to maxThreads-1
      */
-    public E dequeue() {    	
-    	final int myidx = (int)(Thread.currentThread().getId() % maxThreads);
-        final Node<E> prReq = deqself.get(myidx);
-        final Node<E> myReq = deqhelp.get(myidx);
-        deqself.set(myidx, myReq);             // isRequest=true
+    public E dequeue(final int tid) {
+        final Node<E> prReq = deqself.get(tid);
+        final Node<E> myReq = deqhelp.get(tid);
+        deqself.set(tid, myReq);             // isRequest=true
         for (int i=0; i < maxThreads; i++) {
-            if (deqhelp.get(myidx) != myReq) break;
+            if (deqhelp.get(tid) != myReq) break;
             Node<E> lhead = head;
-            if (lhead == tail) {           // Give up
-                deqself.set(myidx,prReq);  // isRequest=false
-                giveUp(myReq, myidx);
-                if (deqhelp.get(myidx) != myReq) {
-                    deqself.set(myidx, myReq);
+            if (lhead == tail) {         // Give up
+                deqself.set(tid,prReq);  // isRequest=false
+                giveUp(myReq, tid);
+                if (deqhelp.get(tid) != myReq) {
+                    deqself.set(tid, myReq);
                     break;
                 }
                 return null;
             }
             Node<E> lnext = lhead.next;
             if (lhead != head) continue;
-            if (searchNext(lhead, lnext) != IDX_NONE) casDeqAndCasHead(lhead, lnext, myidx);
+            if (searchNext(lhead, lnext) != IDX_NONE) casDeqAndCasHead(lhead, lnext, tid);
         }
-        Node<E> myNode = deqhelp.get(myidx);   
+        Node<E> myNode = deqhelp.get(tid);   
         Node<E> lhead = head;
         // Check if step 4 is needed for my node.
         if (lhead == head && myNode == lhead.next) {

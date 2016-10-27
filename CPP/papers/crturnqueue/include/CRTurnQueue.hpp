@@ -182,6 +182,7 @@ public:
      * 2. Insert node in tail.next using a CAS
      * 3. Advance tail to tail.next
      * 4. Remove node from enqueuers[]
+     *
      */
     void enqueue(T* item, const int tid) {
         if (item == nullptr) throw std::invalid_argument("item can not be nullptr");
@@ -222,6 +223,7 @@ public:
      *
      * We must protect either head or tail with HP before doing the check for
      * empty queue, otherwise we may get into retired-deleted-newed-reenqueued.
+     *
      */
     T* dequeue(const int tid) {
         Node* prReq = deqself[tid].load();     // Previous request
