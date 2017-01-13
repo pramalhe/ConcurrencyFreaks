@@ -1,5 +1,5 @@
 /******************************************************************************
- * Copyright (c) 2014-2016, Pedro Ramalhete, Andreia Correia
+ * Copyright (c) 2014-2017, Pedro Ramalhete, Andreia Correia
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,11 +36,9 @@
 
 /**
  * <h1> Double Linked Queue with special Hazard Pointers </h1>
- * ERROR!!!
- * There is an error in this code, and it's triggered by the latency test on windows in opteron: null dequeues
  *
  * Double Linked Queue based on the short paper by Andreia Correia and Pedro Ramalhete
- * github...
+ * https://github.com/pramalhe/ConcurrencyFreaks/blob/master/papers/doublelink-2016.pdf
  *
  * <p>
  * When running uncontended, this algorithm does one CAS and one store to enqueue
