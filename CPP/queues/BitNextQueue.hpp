@@ -37,6 +37,11 @@
 /**
  * <h1> Bit Next Queue </h1>
  *
+ * A Lock-Free queue which uses a trick similar to Tim Harris lock-free list of
+ * setting a bit on the "next" of the node.
+ * Based on the paper "BitNext - A Lock-Free Queue"
+ * https://github.com/pramalhe/ConcurrencyFreaks/tree/master/papers/bitnext-2016.pdf
+ *
  * enqueue algorithm: bit-next, based on the trick of the bit on the next like on Maged-Harris list
  * dequeue algorithm: bit-next, based on the trick of the bit on the next like on Maged-Harris list
  * Consistency: Linearizable
@@ -45,14 +50,14 @@
  * Memory Reclamation: Hazard Pointers
  * Uncontended enqueue: 2 CAS + 1 HP
  * Uncontended dequeue: 2 CAS + 1 HP
- *
- * TODO:
- *
+
  * <p>
  * The paper on Hazard Pointers is named "Hazard Pointers: Safe Memory
  * Reclamation for Lock-Free objects" and it is available here:
  * http://web.cecs.pdx.edu/~walpole/class/cs510/papers/11.pdf
  *
+ * @author Andreia Correia
+ * @author Pedro Ramalhete
  */
 template<typename T>
 class BitNextQueue {
