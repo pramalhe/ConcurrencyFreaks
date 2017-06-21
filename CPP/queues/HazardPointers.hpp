@@ -31,6 +31,7 @@
 #define _HAZARD_POINTERS_H_
 
 #include <atomic>
+#include <vector>
 #include <iostream>
 
 
