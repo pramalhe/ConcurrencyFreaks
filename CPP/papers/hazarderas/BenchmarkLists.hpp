@@ -231,7 +231,7 @@ public:
                     auto nThreads = threadList[ithread];
                     BenchmarkLists bench(nThreads);
                     std::cout << "\n----- Lists Benchmark   numElements=" << numElements << "   ratio=" << ratio/100 << "%   numThreads=" << nThreads << "   numRuns=" << numRuns << "   length=" << testLength.count() << "s -----\n";
-                    ops[LNO][iratio][ithread] = bench.benchmark<MagedHarrisLinkedListNone<UserData>>(ratio, testLength, numRuns, numElements);
+                    ops[LNO][iratio][ithread] = 0;//bench.benchmark<MagedHarrisLinkedListNone<UserData>>(ratio, testLength, numRuns, numElements);
                     ops[LHP][iratio][ithread] = bench.benchmark<MagedHarrisLinkedListHP<UserData>>(ratio, testLength, numRuns, numElements);
                     ops[LHE][iratio][ithread] = bench.benchmark<MagedHarrisLinkedListHE<UserData>>(ratio, testLength, numRuns, numElements);
                     ops[LUR][iratio][ithread] = bench.benchmark<MagedHarrisLinkedListURCU<UserData>>(ratio, testLength, numRuns, numElements);
