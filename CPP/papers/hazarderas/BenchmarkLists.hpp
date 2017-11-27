@@ -34,12 +34,14 @@
 #include <string>
 #include <vector>
 #include <algorithm>
-#include "MagedHarrisLinkedListHE.hpp"
+#include "MagedHarrisLinkedListNone.hpp"
 #include "MagedHarrisLinkedListHP.hpp"
+#include "MagedHarrisLinkedListHE.hpp"
 #include "MagedHarrisLinkedListURCU.hpp"
 //#include "MagedHarrisLinkedListHPLB.hpp"
 //#include "MagedHarrisLinkedListHPLB2.hpp"
 //#include "MagedHarrisLinkedListHERange.hpp"
+//#include "MagedHarrisLinkedListHEWF.hpp"
 
 using namespace std;
 using namespace chrono;
@@ -203,21 +205,23 @@ public:
 
     static void allThroughputTests() {
         //vector<int> threadList = { 1, 2, 4, 8, 16, 20, 24, 28, 32, 34, 36, 48, 64 }; // Number of threads for Opteron
-        vector<int> threadList = { 1, 2, 4, 8 };         // Number of threads for the laptop
-        vector<int> ratioList = { 10000, 1000, 100, 0 }; // per-10k ratio: 100%, 10%, 1%, 0%
+        vector<int> threadList = { 1, 2, 4 };         // Number of threads for the laptop
+        vector<int> ratioList = { 0 /*10000, 1000, 100, 0*/ }; // per-10k ratio: 100%, 10%, 1%, 0%
         const int numRuns = 5;                           // 5 runs for the paper
-        const seconds testLength = 20s;                  // 20s for the paper
-        vector<int> elemsList = { 100, 1000, 10000 };    // Number of keys in the set: 100, 1k, 10k
+        const seconds testLength = 10s;                  // 20s for the paper
+        vector<int> elemsList = { /*100, 1000,*/ 10000 };    // Number of keys in the set: 100, 1k, 10k
 
         // Save results
         // [class][ratio][threads]
-        const int LHP = 0;
-        const int LHE = 1;
-        const int LUR = 2;
-        const int LUD = 3;
-        const int LLB = 4;
-        const int LHR = 5;
-        long long ops[6][ratioList.size()][threadList.size()];
+        const int LNO = 0;
+        const int LHP = 1;
+        const int LHE = 2;
+        const int LUR = 3;
+        const int LUD = 4;
+        const int LLB = 5;
+        const int LHR = 6;
+        const int LWF = 7;
+        long long ops[7][ratioList.size()][threadList.size()];
 
         for (unsigned ielem = 0; ielem < elemsList.size(); ielem++) {
             auto numElements = elemsList[ielem];
@@ -227,12 +231,14 @@ public:
                     auto nThreads = threadList[ithread];
                     BenchmarkLists bench(nThreads);
                     std::cout << "\n----- Lists Benchmark   numElements=" << numElements << "   ratio=" << ratio/100 << "%   numThreads=" << nThreads << "   numRuns=" << numRuns << "   length=" << testLength.count() << "s -----\n";
+                    ops[LNO][iratio][ithread] = bench.benchmark<MagedHarrisLinkedListNone<UserData>>(ratio, testLength, numRuns, numElements);
                     ops[LHP][iratio][ithread] = bench.benchmark<MagedHarrisLinkedListHP<UserData>>(ratio, testLength, numRuns, numElements);
                     ops[LHE][iratio][ithread] = bench.benchmark<MagedHarrisLinkedListHE<UserData>>(ratio, testLength, numRuns, numElements);
                     ops[LUR][iratio][ithread] = bench.benchmark<MagedHarrisLinkedListURCU<UserData>>(ratio, testLength, numRuns, numElements);
                     ops[LLB][iratio][ithread] = 0;//bench.benchmark<MagedHarrisLinkedListHPLB<UserData>>(ratio, testLength, numRuns, numElements);
                     ops[LUD][iratio][ithread] = 0;//bench.benchmark<MagedHarrisLinkedListHPLB2<UserData>>(ratio, testLength, numRuns, numElements);
                     ops[LHR][iratio][ithread] = 0;//bench.benchmark<MagedHarrisLinkedListHERange<UserData>>(ratio, testLength, numRuns, numElements);
+                    ops[LWF][iratio][ithread] = 0;//bench.benchmark<MagedHarrisLinkedListHEWF<UserData>>(ratio, testLength, numRuns, numElements);
                 }
             }
         }
@@ -244,12 +250,12 @@ public:
             std::cout << "\nNumber of elements: " << numElements << "\n";
             for (int iratio = 0; iratio < ratioList.size(); iratio++) {
                 auto ratio = ratioList[iratio];
-                cout << "Ratio " << ratio/100 << "%\n";
-                cout << "Threads, Hazard Pointers, Hazard Eras, URCU, Hazard Pointers (Linear Bound), HP LB2, HE Range\n";
+                cout << "Ratio " << ratio/100. << "%\n";
+                cout << "Threads, No Reclamation, Hazard Pointers, Hazard Eras, URCU, Hazard Pointers (Linear Bound), HP LB2, HE Range, HE WF\n";
                 for (int ithread = 0; ithread < threadList.size(); ithread++) {
                     auto nThreads = threadList[ithread];
                     cout << nThreads << ", ";
-                    for (int il = 0; il < 6; il++) {
+                    for (int il = 0; il < 8; il++) {
                         cout << ops[il][iratio][ithread] << ", ";
                     }
                     cout << "\n";
