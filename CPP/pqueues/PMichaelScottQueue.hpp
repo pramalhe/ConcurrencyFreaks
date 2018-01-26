@@ -57,8 +57,8 @@
  * https://www.cs.rochester.edu/u/jhi1/papers/2016-spaa-transform
  *
  * We're assuming that CAS has persistent semantics similar to PFENCE() that
- * doesn't act on the load/store of the CAS itself, only on the loads.
- * In other words, it's as if a CAS is equivalent to a:
+ * doesn't act on the load/store of the CAS itself, only on the other loads
+ * and stores. In other words, it's as if a CAS is equivalent to a:
  *   PFENCE();
  *   CAS()     // concurrent
  *   PFENCE();
@@ -82,6 +82,19 @@
  *   PWB(&a_is_persisted);
  * then the only way to guarantee correct ordering, is to have the PWB() and
  * a PSYNC() or PFENCE() before returning from enqueue()/dequeue().
+ *
+ * Related to the above, there is a trick on enqueue(). Instead of adding the
+ * PWB(&tail) and PSYNC(), we don't do that thanks to happens-before relations.
+ * Namely, for enqueue() to return it means the CAS on tail has been done, and
+ * although the value of tail may not be persisted, the CAS on tail guarantees
+ * that the value of the node->next is persisted. This means that if a crash
+ * occurs and even if a_is_persisted is persisted and the change to tail occurring
+ * on the enqueue does not, it's still ok because the node->next is persisted
+ * which will allow the recover() of the queue to advance the tail and persist
+ * it as well.
+ * Unfortunately, for the dequeue(), no such trick is possible on the head,
+ * therefore, we really do need the PWB(&head) and PSYNC() before returning
+ * from dequeue().
  *
  * About the constructor:
  * As long as the allocator returns a zeroed-out memory region, the 'head' and
@@ -246,8 +259,6 @@ public:
                     if (ltail->casNext(nullptr, newNode)) {
                         PWB(&ltail->next);
                         casTail(ltail, newNode);
-                        PWB(&tail);
-                        PSYNC();
                         hp->clear(tid);
                         return;
                     }
