@@ -117,6 +117,12 @@ public:
 
 
     ~LROrderedLinkedListSingle() {
+        Node* node = _head;
+        while (node->nextLeft != _tail) {
+            _head = node->nextLeft;
+            delete node;
+            node = _head;
+        }
     	delete _head;
     	delete _tail;
     	delete[] _readersVersion0;
@@ -266,8 +272,6 @@ public:
      *         the key is already in the set.
      */
     bool add(T key) {
-        Node* newNode = new Node();
-        newNode->key = key;
         Node* prevNode = nullptr;
 
         std::lock_guard<std::mutex> lock(_writersMutex);
@@ -277,6 +281,8 @@ public:
             if (prevNode->nextRight != _tail && prevNode->nextRight->key == key) {
                 return false;
             }
+            Node* newNode = new Node();
+            newNode->key = key;
             newNode->nextRight  = prevNode->nextRight;
             newNode->nextLeft   = prevNode->nextLeft;
             prevNode->nextRight = newNode;
@@ -288,6 +294,8 @@ public:
             if (prevNode->nextLeft != _tail && prevNode->nextLeft->key == key) {
                 return false;
             }
+            Node* newNode = new Node();
+            newNode->key = key;
             newNode->nextRight = prevNode->nextRight;
             newNode->nextLeft  = prevNode->nextLeft;
             prevNode->nextLeft = newNode;
