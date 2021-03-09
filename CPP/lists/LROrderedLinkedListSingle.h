@@ -117,12 +117,7 @@ public:
 
 
     ~LROrderedLinkedListSingle() {
-        Node* node = _head;
-        while (node->nextLeft != _tail) {
-            _head = node->nextLeft;
-            delete node;
-            node = _head;
-        }
+        clear();
     	delete _head;
     	delete _tail;
     	delete[] _readersVersion0;
@@ -333,6 +328,43 @@ public:
     }
 
 
+    /**
+    * Clear the set.
+    *
+    * Progress Condition: Blocking
+    */
+    void clear() {
+        Node* node = nullptr;
+        Node* next = nullptr;
+
+        std::lock_guard<std::mutex> lock(_writersMutex);
+        if (_leftRight.load() == READS_ON_LEFT) {
+            _head->nextRight = _tail;
+            _leftRight.store(READS_ON_RIGHT);
+            toggleVersionAndWait();
+            node = _head->nextLeft;
+            while (node != _tail) {
+                next = node->nextLeft;
+                delete node;
+                node = next;
+            }
+            _head->nextLeft = _tail;
+        }
+        else {
+            _head->nextLeft = _tail;
+            _leftRight.store(READS_ON_LEFT);
+            toggleVersionAndWait();
+            node = _head->nextRight;
+            while (node != _tail) {
+                next = node->nextRight;
+                delete node;
+                node = next;
+            }
+            _head->nextRight = _tail;
+        }
+    }
+    
+    
     /**
      * Removes a key from the set.
      *
