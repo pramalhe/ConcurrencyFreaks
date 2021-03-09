@@ -348,6 +348,7 @@ public:
                 delete node;
                 node = next;
             }
+            _head->nextLeft = _tail;
         }
         else {
             _head->nextLeft = _tail;
@@ -359,6 +360,7 @@ public:
                 delete node;
                 node = next;
             }
+            _head->nextRight = _tail;
         }
     }
     
