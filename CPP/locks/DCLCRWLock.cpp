@@ -151,7 +151,7 @@ void DCLCRWLock::exclusiveLock (void)
  */
 bool DCLCRWLock::exclusiveUnlock (void)
 {
-	if (writersMutex.load(std::memory_order_relaxed) != DCLC_RWL_LOCKED) {
+    if (writersMutex.load(std::memory_order_relaxed) != DCLC_RWL_LOCKED) {
         // ERROR: Tried to unlock an non-locked write-lock
         std::cout << "********* ERROR: Tried to unlock an non-locked write-lock\n";
         return false;
@@ -175,4 +175,20 @@ bool DCLCRWLock::trySharedLock (void)
     }
 }
 
-/* TODO: implement the writer's trylock and the timeouts */
+bool DCLCRWLock::tryExclusiveLock (void)
+{
+    int old = DCLC_RWL_UNLOCKED;
+    // Try to acquire the write-lock
+    if (!writersMutex.compare_exchange_strong(old, DCLC_RWL_LOCKED)) {
+        return false;
+    }
+
+    // Write-lock was acquired, now wait for any running Readers to finish
+    for (int idx = 0; idx < countersLength; idx += DCLC_COUNTERS_RATIO) {
+        if (readersCounters[idx].load() > 0) {
+            writersMutex.store(DCLC_RWL_UNLOCKED);
+            return false;
+        }
+    }
+    return true;
+}

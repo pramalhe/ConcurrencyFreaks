@@ -35,6 +35,7 @@ public:
     bool trySharedLock(void);
     bool sharedUnlock(void);
     void exclusiveLock(void);
+    bool tryExclusiveLock(void);
     bool exclusiveUnlock(void);
 
 private:
