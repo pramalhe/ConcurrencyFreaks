@@ -37,6 +37,8 @@ public:
     void exclusiveLock(void);
     bool tryExclusiveLock(void);
     bool exclusiveUnlock(void);
+    bool downgradeLock(void);
+    bool tryUpgradeLock(void);
 
 private:
     int thread2idx(void);
