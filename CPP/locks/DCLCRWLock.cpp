@@ -151,7 +151,7 @@ void DCLCRWLock::exclusiveLock (void)
  */
 bool DCLCRWLock::exclusiveUnlock (void)
 {
-	if (writersMutex.load(std::memory_order_relaxed) != DCLC_RWL_LOCKED) {
+    if (writersMutex.load(std::memory_order_relaxed) != DCLC_RWL_LOCKED) {
         // ERROR: Tried to unlock an non-locked write-lock
         std::cout << "********* ERROR: Tried to unlock an non-locked write-lock\n";
         return false;
@@ -175,4 +175,59 @@ bool DCLCRWLock::trySharedLock (void)
     }
 }
 
-/* TODO: implement the writer's trylock and the timeouts */
+bool DCLCRWLock::tryExclusiveLock (void)
+{
+    int old = DCLC_RWL_UNLOCKED;
+    // Try to acquire the write-lock
+    if (!writersMutex.compare_exchange_strong(old, DCLC_RWL_LOCKED)) {
+        return false;
+    }
+
+    // Write-lock was acquired, now check for any running Readers
+    for (int idx = 0; idx < countersLength; idx += DCLC_COUNTERS_RATIO) {
+        if (readersCounters[idx].load() > 0) {
+            writersMutex.store(DCLC_RWL_UNLOCKED);
+            return false;
+        }
+    }
+    return true;
+}
+
+bool DCLCRWLock::downgradeLock(void) {
+    const int idx = thread2idx();
+    readersCounters[idx].fetch_add(1);
+    if (writersMutex.load(std::memory_order_relaxed) != DCLC_RWL_LOCKED) {
+        // ERROR: Tried to downgrade an non-locked write-lock
+        std::cout << "********* ERROR: Tried to downgrade an non-locked write-lock\n";
+        return false;
+    }
+    writersMutex.store(DCLC_RWL_UNLOCKED);
+    return true;
+}
+
+bool DCLCRWLock::tryUpgradeLock(void) {
+    int old = DCLC_RWL_UNLOCKED;
+    // Try to acquire the Write-lock
+    if (!writersMutex.compare_exchange_strong(old, DCLC_RWL_LOCKED)) {
+        return false;
+    }
+
+    if (readersCounters[thread2idx()].fetch_add(-1) <= 0) {
+        // ERROR: no matching lock() for this upgrade()
+        std::cout << "ERROR: no matching lock() for this upgrade()\n";
+        // Release the Write-lock
+        writersMutex.store(DCLC_RWL_UNLOCKED);
+        return false;
+    }
+
+    // Write-lock was acquired, now check for any running Readers
+    for (int idx = 0; idx < countersLength; idx += DCLC_COUNTERS_RATIO) {
+        if (readersCounters[idx].load() > 0) {
+            // Re-acquire the Read-lock and release the Write-lock
+            readersCounters[thread2idx()].fetch_add(1);
+            writersMutex.store(DCLC_RWL_UNLOCKED);
+            return false;
+        }
+    }
+    return true;
+}
