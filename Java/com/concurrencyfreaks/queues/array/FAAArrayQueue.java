@@ -72,7 +72,7 @@ import com.concurrencyfreaks.queues.IQueue;
  * <p>
  * The paper on Hazard Pointers is named "Hazard Pointers: Safe Memory
  * Reclamation for Lock-Free objects" and it is available here:
- * http://web.cecs.pdx.edu/~walpole/class/cs510/papers/11.pdf
+ * https://web.archive.org/web/20140216055028/http://web.cecs.pdx.edu/~walpole/class/cs510/papers/11.pdf
  *
  * @author Pedro Ramalhete
  * @author Andreia Correia
